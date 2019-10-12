@@ -1,5 +1,6 @@
 # rubyslippers
 Raspberry pi autossh bash script utilizing google spreadsheets.
+
 --BsidesDFW 2019
 
 * Dependencies:
@@ -13,6 +14,7 @@ Raspberry pi autossh bash script utilizing google spreadsheets.
 Minimum requirements: 
 * Home router to port forward ssh incomming port to static IP raspberry pi.
 * Raspberry pi with Rasbian Buster Lite image from [raspberrypi.org](https://www.raspberrypi.org/downloads/raspbian/ "raspberrypi.org")
+
 	Follow initial setup raspberry configuration preferences.
 	Set Locale
 	Set timezone
