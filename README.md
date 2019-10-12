@@ -1,4 +1,7 @@
 # rubyslippers
-raspberry pi ssh call back home
-dependencies: auto-ssh
-google form input: 
+	* Raspberry pi autossh 
+	* Dependencies:
+		** Google spreadheet form
+	* app dependencies: autossh
+	* file dependencies (provided) : urlencode.sed urldecode.sed
+
