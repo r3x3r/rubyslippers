@@ -295,6 +295,13 @@ fi # file not exists
 ## main shell program options variables
 if [ $OptCmd ]; then
  case $OptCmd in
+  installfiles) # setup files in /usr/local/bin  must be root
+		echo "must be root"
+		echo "copy files to /usr/local/bin"
+		echo "cp rubyslippers.sh /usr/local/bin"
+		echo "cp url*code.sed /usr/local/bin"
+		exit 0
+	;;
   setupServer) # initial server setup must be root
     GetSysHwid;
     setup_server;
