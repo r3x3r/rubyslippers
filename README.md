@@ -48,15 +48,21 @@ Create with 8 short answer text, all required questions.
 * ISPname
 
 Form -> goto live form  and copy url 
+
 edit rubyslippers.sh 
-  gliveformurl="https://docs.google.com/forms/d/e/abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrst/viewform"
+~~~~
+gliveformurl="https://docs.google.com/forms/d/e/abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrst/viewform"
+~~~~
+
 File - > publish to Web
 Link section
 entire document - Tab-seperated values (.tsv)
 expand Published Contents & settings
 entire document 
 checkbox 
-  glivetsvurl="https://docs.google.com/spreadsheets/d/e/abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmn/pub?output=tsv"
+~~~~
+glivetsvurl="https://docs.google.com/spreadsheets/d/e/abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmn/pub?output=tsv"
+~~~~
 
 ----
 
