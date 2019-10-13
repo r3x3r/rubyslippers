@@ -21,7 +21,7 @@ Minimum requirements:
 * Raspberry pi with Rasbian Buster Lite image from [raspberrypi.org](https://www.raspberrypi.org/downloads/raspbian/ "raspberrypi.org")
 
 ----
-1. Follow initial basic setup raspberry prefrences and configuration.
+1. Follow initial basic setup raspberry prefrences and configuration.  [raspi-config](https://www.raspberrypi.org/documentation/configuration/raspi-config.md)
 *	Set Locale
 *	Set timezone
 *	Set Keyboard
