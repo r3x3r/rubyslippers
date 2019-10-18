@@ -57,7 +57,7 @@ Create with 8 short answer text, all required questions.
 
 Form -> goto live form  and copy url 
 ~~~~
-gliveformurl="https://docs.google.com/forms/d/e/abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrst/viewform"
+gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
 ~~~~
 
 * File - > publish to Web
@@ -67,7 +67,7 @@ gliveformurl="https://docs.google.com/forms/d/e/abcdefghijklmnopqrstuvwxyz123456
 * Put a checkbox in entire document 
 
 ~~~~
-glivetsvurl="https://docs.google.com/spreadsheets/d/e/abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmn/pub?output=tsv"
+glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?output=tsv"
 ~~~~
 
 ----
