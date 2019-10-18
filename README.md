@@ -19,6 +19,7 @@ Minimum requirements:
 * Home router assign static IP raspberry pi.
 * Home router port forward ssh to raspberry pi
 * Raspberry pi with Rasbian Buster Lite image from [raspberrypi.org](https://www.raspberrypi.org/downloads/raspbian/ "raspberrypi.org")
+* developed on rpi1b
 
 ----
 1. Follow initial basic setup raspberry prefrences and configuration.  [raspi-config](https://www.raspberrypi.org/documentation/configuration/raspi-config.md)
@@ -29,15 +30,15 @@ Minimum requirements:
 *	change the default pi password with #> passwd
 	
 ----
-2. Configure home server router assigning static IP address. Be sure to get mac address of raspberry pi to boot up with the same IP address. [many how-to videos](https://www.google.com/search?q=setup+static+ip+home+router+raspberry+pi&source=lnms&tbm=vid "many how-to videos").
+2. Configure home router to staticly assign raspberry IP address. Use the mac address of raspberry pi to boot up with the same IP address. [many how-to videos](https://www.google.com/search?q=setup+static+ip+home+router+raspberry+pi&source=lnms&tbm=vid "many how-to videos").
 ----
-3. Configure home router port forward outside network to raspberry pi IP address. (reference your manufacture/brand *security risks* choose a non-standard number of obfuscation)
+3. *security risk assesment here* Configure home router port forward outside network to raspberry pi IP address. (reference your specific manufacture/brand and choose a non-standard number of obfuscation)
 ~~~~
 isServer=yes
 sshinport=686
-
 ~~~~
-4. The first virtual loopback ssh port starts from 2200.  Increment +1 for each raspi remote client.  
+----
+4. Choose your virtual loopback ssh starting port.  Begins at 2200 and increments +1 for each unique hawrdware ID raspi remote client not found in google sheet online.  
 ~~~~
 vloopstart=2200
 ~~~~
@@ -47,7 +48,7 @@ vloopstart=2200
 * example: piConnectBack
 * goto Tools menu, select Create form
 
-Create with 8 short answer text, all required questions.
+Create with 8 short answer text, all required questions in specified order.
 
 * Hostname
 * HardwareID

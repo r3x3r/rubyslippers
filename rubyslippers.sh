@@ -6,6 +6,9 @@
 # SSH INBOUND PORT NUMBER
 # sorry IPv4 only
 isServer=yes
+
+# Important:identifier here
+# Obfuscated choose your own "random" incomming home port number from your google sheet
 sshinport=10069
 
 # client login username, usualy pi - default
@@ -77,10 +80,10 @@ gformcat="wget -qO- $glivetsvurl"
 # should be root
 GetSysHwid(){  ## raspberry cpu serial number
 # optional 
-if [ $UID -ne 0 ]; then
- echo "must be root"
- exit 1
-fi
+#if [ $UID -ne 0 ]; then
+# echo "must be root getsyshwid"
+# exit 1
+#fi
 ## check for syshwid, if syshwid cannot be determined, unknown cputype/enviornment and exit
 ## determine arm/intel/virtual
 syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
@@ -160,6 +163,10 @@ GetSysNetwork(){  ## system and network information
 		echo "must be root"
 		exit 1
 	fi
+	if [ ! -f $callhomecfg ]; then
+		echo "callhomecfg not exists"
+		exit 1
+	fi
 	sysname="$(hostname | $sedencode )"
 	gformhostname=$(grep Hostname $callhomecfg | cut -d\| -f1)
 	sysnamegform="$gformhostname=$sysname"
@@ -198,7 +205,19 @@ GetSysNetwork(){  ## system and network information
 	echo "$sysname|$localip|$lsbrelease|$syskernel|$sysarch|$rpimodel|" | $seddecode 
 }  # end of GetSysNetwork interfaces
 
+# using ouput of gform and incoming obfuscated port number defined 
+GetHomenetIPaddr() { 
+
+homenetall="$($gformcat | grep ":$sshinport" | cut -f 5 | tail -n 1 | awk '{ print $1 }')"
+homenet="$(echo $homenetall | cut -d\: -f1)"
+homenetport="$(echo $homenetall | cut -d\: -f2)"
+
+
+
+}
+
 # clickshoes to call home
+
 createTunnel() {
   #/usr/bin/ssh -N -R rexer@$rexnet 
   #/usr/bin/ssh -N -R $homenet:localhost:22 -p $rexnetport rexer@$rexnet 
@@ -279,7 +298,6 @@ echo "homenet $homenetgform" | $seddecode
 echo "outsideip $outsideipgform" | $seddecode
 echo "ispname $ispnamegform" | $seddecode
 echo "sysarch $sysarchgform" | $seddecode
-echo "rpimodel $rpimodelgform" | $seddecode
 #read anykeyedpressed
 
 #fi
@@ -324,6 +342,7 @@ fi # file not exists
 
 #GetSysNetwork;
 #GetOutSideNet;
+GetHomenetIPaddr;
 
 
 ## main shell execution (verb) options and variables
@@ -357,8 +376,8 @@ if [ $OptCmd ]; then
     fi
     exit 0
    ;;
-	callhomefirst) # callhome first to test ssh call home
-		echo "callhome first ssh to save password"
+  callhomefirst) # callhome first to test ssh call home
+		echo "callhome first ssh to save password and ssh keys here"
 		exit 0
 	;;
   showconnected) # show machies connected to server
@@ -379,12 +398,14 @@ if [ $OptCmd ]; then
   tapshoes) # no place like home
     GetSysHwid;
 		ReadHomenetCFG;
+		GetHomenetIPaddr;
     echo "tick tock auto-ssh connect home"
-		echo "createTunnel vpsuser|$vpsuser|homenet|$homenet|homenetport|$homenetport"
+		echo "createTunnel vpsuser|$vpsuser|homenet|$homenet|homenetport|$homenetport|"
     isrunning=$(ps ax | grep autossh | grep $vpsuser | grep "$homenet" | grep -v grep | head -n 1 | awk '{ print $1 }')
     if [ -z $isrunning ]; then
-            #createTunnel
-            echo "createTunnel; vpsuser|$vpsuser|homenet|$homenet|homenetport|$homenetport"
+			#must have $vpsuser $homenet $homenetport
+			echo "not running trigger createTunnel; vpsuser|$vpsuser|homenet|$homenet|homenetport|$homenetport"
+			#createTunnel
 		else
 					echo "sub createTunnel with parms"
 		fi
@@ -404,12 +425,14 @@ if [ $OptCmd ]; then
   ;;
   join) # join network $1 $2 $3 $4 $5
 		ReadHomenetCFG;
+#/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet $homenetport 
     echo "establish connection needed parms (join) nowtime vpsuser sysname homenet"
     echo "($1) $2 $3 $4 $5"
     nowtime=$2
     vpsuser=$3
     sysname=$4
     homenet=$5
+    echo "$nowtime $vpsuser $sysname $homenet" >> $homenetdb
     echo "/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet"
     exit 0
   ;;
