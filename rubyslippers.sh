@@ -11,6 +11,11 @@ sshinport=686
 # client login username, usualy pi - default
 vpsuser=pi
 
+# Virtual loopback sshport number to connect into remote raspberry pi
+# additional clients will increment by 1
+# example server=2200  rpi1=2201   rpi2=2202
+vloopstart=2200
+
 # checkfor homenetcfg file 
 #  if not present, 
 #     if syshwid online not recorded before,
@@ -30,16 +35,12 @@ vpsuser=pi
 #dependencies: /usr/local/bin/urlencode.sed
 #              /usr/local/bin/urldecode.sed
 
-## explain how to get these urls..
-# Create a google form with these Elements
-
-# create a google sheet
-# goto create create form
-# create form input elements of 
-# | Hostname | HardwareID | IPlocal | OutsideIP | Release | Kernel | SysArch | Homenet | ISPname |
+# Create a google sheet form with these Elements
+# form input questions are: 
+#  Hostname   HardwareID   IPlocal   OutsideIP   Release   Kernel   SysArch   Homenet   ISPname  RpiModel
 # simple text one line user input
 # Form -> goto live form  and copy url
-gliveformurl="https://docs.google.com/forms/d/e/1FAIpQLSc9ENsLkGI6XffWFcj47NIKVFPAwkEUWGEGgWGHqlT_uALtAA/viewform"
+gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
 #
 # After creating personal google form with as formnamed entries
 # File - > publish to Web
@@ -48,7 +49,8 @@ gliveformurl="https://docs.google.com/forms/d/e/1FAIpQLSc9ENsLkGI6XffWFcj47NIKVF
 # expand Published Contents & settings
 # entire document 
 # checkbox 
-glivetsvurl="https://docs.google.com/spreadsheets/d/e/2PACX-1vRR6eIS7FYFpC5ehObdrIAJQ-TX13JgPe5pKm7UdcdiR66cqzmONKe2vFKH5qTlmsnc5E1_Cu3l7dEt/pub?output=tsv"
+#
+glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?output=tsv"
 ## end of Google Form Configuration 
 ## 
 
@@ -77,7 +79,7 @@ syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":
 rpimodel="$(dtc -I fs /sys/firmware/devicetree/base 2>&1 | grep 'model = ' | cut -d\" -f2 )"
 #echo "ARM $syshwid"
 if [ -z "$rpimodel" ]; then
-  echo "unknown raspberry pi model aaanew"
+  echo "unknown raspberry pi model"
   exit 1
 fi
 if [ -z $syshwid  ]; then

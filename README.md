@@ -1,7 +1,7 @@
 # rubyslippers
-Raspberry pi autossh bash script utilizing google spreadsheets.
+Raspberry pi autossh bash auto-ssh script utilizing google spreadsheets.
 
-No outside ports are needed to connect to remote network raspberry pi.
+No outside ports are needed to be forwarded to client raspberry pi on remote network.
 
 ----
 BsidesDFW 2019
@@ -36,6 +36,8 @@ Minimum requirements:
 isServer=yes
 sshinport=686
 ~~~~
+The first virtual loopback ssh port starts from 2200.  Each remote client will increment by 1 from starting port number. eg. 2201
+
 4. Create Google Sheet to use as a database.
 
 * example: piConnectBack
@@ -58,15 +60,11 @@ Form -> goto live form  and copy url
 gliveformurl="https://docs.google.com/forms/d/e/abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrst/viewform"
 ~~~~
 
-File - > publish to Web
-
-Link section
-
-Entire document - Tab-seperated values (.tsv)
-
-Expand Published Contents & settings
-
-Put a checkbox in entire document 
+* File - > publish to Web
+* Link section
+* Entire document - Tab-seperated values (.tsv)
+* Expand Published Contents & settings
+* Put a checkbox in entire document 
 
 ~~~~
 glivetsvurl="https://docs.google.com/spreadsheets/d/e/abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmn/pub?output=tsv"
