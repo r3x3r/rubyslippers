@@ -5,16 +5,11 @@
 
 # SSH INBOUND PORT NUMBER
 # sorry IPv4 only
-isServer=no
-sshinport=686
+isServer=yes
+sshinport=10069
 
 # client login username, usualy pi - default
 vpsuser=pi
-
-# Virtual loopback sshport number to connect into remote raspberry pi
-# additional clients will increment by 1
-# example server=2200  rpi1=2201   rpi2=2202
-vloopstart=2200
 
 # checkfor homenetcfg file 
 #  if not present, 
@@ -55,25 +50,37 @@ glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?out
 ## end of Google Form Configuration 
 ## 
 
+# Virtual loopback sshport start number to connect into remote raspberry pi
+# additional clients will increment by 1
+# example server=2200 *try not to use 00reserved  rpi1=2201   rpi2=2202
+vloopstart=2200
+
+# default config files
 homenetcfg=/opt/share/callhome.homenet
 homenetdb=/opt/share/homenet.db
 callhomecfg=/opt/share/callhome.cfg
 ## formated > portnumber $syshwid
 
+#  main program action 
 OptCmd=$1
+
+#  extra files used for sed encode/decode 
 sedencode="sed -f /usr/local/bin/urlencode.sed"
 seddecode="sed -f /usr/local/bin/urldecode.sed"
 
+# get execution date time stamp
 nowtime="$(date +%Y%m%d-%H:%M)"
-#
-# shorten the wget google live form output 
+
+# shorten the wget command to dump database to STDOUT
 gformcat="wget -qO- $glivetsvurl"
 
+# should be root
 GetSysHwid(){  ## raspberry cpu serial number
-#if [ $UID -ne 0 ]; then
-# echo "must be root"
-# exit 1
-#fi
+# optional 
+if [ $UID -ne 0 ]; then
+ echo "must be root"
+ exit 1
+fi
 ## check for syshwid, if syshwid cannot be determined, unknown cputype/enviornment and exit
 ## determine arm/intel/virtual
 syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
@@ -105,6 +112,7 @@ if [ -z $syshwid  ]; then
 fi
 }  # end of GetSysHwid
 
+# minimum additional software packages for home server
 setup_server(){
 deplist="wget curl md5sum awk cut grep"
 for dep in $deplist ; do
@@ -121,6 +129,7 @@ fi
 
 }
 
+# minimum additional software packages for client remote
 setup_client(){
 deplist="wget curl md5sum awk cut grep autossh"
 for dep in $deplist ; do
@@ -145,7 +154,8 @@ fi
 
 
 
-GetSysNetwork(){  ## system network interfaces
+GetSysNetwork(){  ## system and network information
+# sed encode the output for google url 
 	if [ $UID -ne 0 ]; then
 		echo "must be root"
 		exit 1
@@ -179,15 +189,16 @@ GetSysNetwork(){  ## system network interfaces
   sysarch="$(cat /proc/cpuinfo | grep -w 'model name' | tail -n 1 | cut -d\: -f2-|cut -c2- | $sedencode )"
 	gformsysarch=$(grep SysArch $callhomecfg | cut -d\| -f1)
   sysarchgform="$gformsysarch=$sysarch"
-
+	#anew feature?
 	rpimodel="$(dtc -I fs /sys/firmware/devicetree/base 2>&1 | grep 'model = ' | cut -d\" -f2 | $sedencode )"
 	gformrpimodel=$(grep RpiModel $callhomecfg | cut -d\| -f1 )
 	rpimodelgform="$gformrpimodel=$rpimodel" ##newinfo
 
+# remember to decode back to plain txt
 	echo "$sysname|$localip|$lsbrelease|$syskernel|$sysarch|$rpimodel|" | $seddecode 
 }  # end of GetSysNetwork interfaces
 
-
+# clickshoes to call home
 createTunnel() {
   #/usr/bin/ssh -N -R rexer@$rexnet 
   #/usr/bin/ssh -N -R $homenet:localhost:22 -p $rexnetport rexer@$rexnet 
@@ -195,30 +206,38 @@ createTunnel() {
   #sudo -u autossh bash -c '/usr/local/bin/autossh -M 0 -f autossh@homeserver01 -p 9991 -N -o "ExitOnForwardFailure=yes" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R 8081:localhost:9991'
   #note  autossh -M pi3_checking_port -fN -o "PubkeyAuthentication=yes" -o "StrictHostKeyChecking=false" -o "PasswordAuthentication=no" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R vps_ip:vps_port:localhost:pi_port -i /home/pi/.ssh/id_rsa vps_user@vps_port
 
+#sub local vars
+vpsuser=$2
+homenet=$3
+homenetport=$4
+
 ##if [ -z "$rexnet" -o -z "$rexnetport" -o -z "$homenet" ]; then
 if [ -z "$vpsuser" -o -z "$homenet" -o -z "$homenetport" ]; then
-  echo "no $vpsuser or $homenet or $homenetport"
+	echo "find home network IP from google sheet tsv data"
+  echo "no vpsuser $vpsuser or homenet $homenet or homenetport $homenetport"
   exit 1
 fi
-
+## apply security model risks here
  echo "** autossh -M 0 -f $vpsuser@$homenet -p $homenetport -N -o \"StrictHostKeyChecking=false\" -o \"PasswordAuthentication=no\" -o \"ExitonForwardFailure=yes\" -o \"ServerAliveInterval 60\" -o \"ServerAliveCountMax 3\" -R $homenet:localhost:22 -vvv "
  #echo " autossh -M 0 -f $vpsuser@$rexnet -p $rexnetport -N -o \"StrictHostKeyChecking=false\" -o \"PasswordAuthentication=no\" -o \"ExitonForwardFailure=yes\" -o \"ServerAliveInterval 60\" -o \"ServerAliveCountMax 3\" -R $homenet:localhost:22 -vvv "
 #  autossh -M 0 -f $vpsuser@$rexnet -p $rexnetport -N -o "StrictHostKeyChecking=false" -o "PasswordAuthentication=no" -o "ExitonForwardFailure=yes" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R $homenet:localhost:22 -vvv
 if [[ $? -eq 0 ]]; then
 # send info to homeserver
   echo "homenet|$homenet|homenetport|$homenetport|sysname|$sysname|vpsuser|$vpsuser|" 
+# default install location in /usr/local/bin?
+# default remote shell to homenet and run # usr/local/bin/rubyslippers.sh join nowtime vpsuser sysname homenet
   echo "rsh -p $homenetport $vpsuser@$homenet \"/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet\" "
-  echo "join $nowtime $vpsuser $sysname $homenet $homenetport "
+  echo "/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet $homenetport "
   exit 0
  else
-  echo "homenet|$homenet|rexnet|$rexnet|rexnetport|$rexnetport|sysname|$sysname|vpsuser|$vpsuser|" 
+  echo "homenet|$homenet|homenetport|$homenetport|sysname|$sysname|vpsuser|$vpsuser|" 
   echo "An error occurred calling home.  code $?"
   exit 1
 fi
 
 }
 
-GetOutSideNet(){ ## Outside IP information
+GetOutSideNet(){ ## Outside IP information from https://www.ip-adress.com/index*
 wget -qO- https://www.ip-adress.com/what-is-my-ip-address | sed -e 's/<tr>/|/g' -e 's/<td>/|/g' | sed "s/<[^>]\+>//g" | grep '^|' > /tmp/findipaddress
 
 if [ -z /tmp/findipaddress ]; then
@@ -226,6 +245,7 @@ if [ -z /tmp/findipaddress ]; then
   exit 1
 fi
 
+#parse the output of urlsite
 MyIPAddress=$(grep -w "IP Address" /tmp/findipaddress | cut -d\| -f 3)
 CName=$(grep -w "Country" /tmp/findipaddress | grep -v Code | cut -d\| -f 3 | sed -e 's/ //g')
 Region=$(grep -w "State" /tmp/findipaddress | grep -v Code | cut -d\| -f3 | sed -e 's/ //g')
@@ -242,14 +262,11 @@ outsideip=$MyIPAddress
 ispnameURL="$(echo $CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude | $sedencode )"
 gformispname=$(grep ISPname $callhomecfg | cut -d\| -f1 )
 ispnamegform="$gformispname=$ispnameURL"
-#ispnamegform="entry.588822800=$ispnameURL"
 #HOMENET is supoosed to be defined now
 gformhomenet=$(grep Homenet $callhomecfg | cut -d\| -f1 )
 homenetgform="$gformhomenet=$homenet"
-#homenetgform="entry.1018460793=$homenet"
 gformpubaddr=$(grep OutsideIP $callhomecfg | cut -d\| -f1)
 outsideipgform="$gformpubaddr=$outsideip"
-#outsideipgform="entry.1222643190=$outsideip"
 
 #if [ $1 == "debuginfo" ]; then
 echo "MyIPAddress $MyIPAddress"
@@ -262,6 +279,7 @@ echo "homenet $homenetgform" | $seddecode
 echo "outsideip $outsideipgform" | $seddecode
 echo "ispname $ispnamegform" | $seddecode
 echo "sysarch $sysarchgform" | $seddecode
+echo "rpimodel $rpimodelgform" | $seddecode
 #read anykeyedpressed
 
 #fi
@@ -308,12 +326,12 @@ fi # file not exists
 #GetOutSideNet;
 
 
-## main shell program options variables
+## main shell execution (verb) options and variables
 if [ $OptCmd ]; then
  case $OptCmd in
   installfiles) # setup files in /usr/local/bin  must be root
 		echo "must be root"
-		echo "copy files to /usr/local/bin"
+		echo "copy rubyslippers package to /usr/local/bin"
 		echo "cp rubyslippers.sh /usr/local/bin"
 		echo "cp url*code.sed /usr/local/bin"
 		exit 0
@@ -339,11 +357,20 @@ if [ $OptCmd ]; then
     fi
     exit 0
    ;;
+	callhomefirst) # callhome first to test ssh call home
+		echo "callhome first ssh to save password"
+		exit 0
+	;;
   showconnected) # show machies connected to server
     if [ $isServer = "yes" ]; then
-      echo "| Time | User | hostname | ssh port  "
-      #wiki format cat $homenetdb | sed -e 's/ / |\^ /g' -e 's/^/|\^ /g' -e 's/$/|\n/g'
-      cat $homenetdb | sed -e 's/ / | /g'
+			if [ -f $homenetdb ]; then
+	      echo "| Time | User | hostname | ssh port  "
+					#wiki format cat $homenetdb | sed -e 's/ / |\^ /g' -e 's/^/|\^ /g' -e 's/$/|\n/g'
+					cat $homenetdb | sed -e 's/ / | /g'
+				else
+					echo "no nohomenetdb"
+					exit 1
+			fi
     else
       echo "not a server"
     fi
@@ -353,13 +380,15 @@ if [ $OptCmd ]; then
     GetSysHwid;
 		ReadHomenetCFG;
     echo "tick tock auto-ssh connect home"
-                                                  # check for master $homenet IP address
-    echo "$vpsuser $homenet"
+		echo "createTunnel vpsuser|$vpsuser|homenet|$homenet|homenetport|$homenetport"
     isrunning=$(ps ax | grep autossh | grep $vpsuser | grep "$homenet" | grep -v grep | head -n 1 | awk '{ print $1 }')
     if [ -z $isrunning ]; then
             #createTunnel
-            echo "create Tunnel sub process $vpsuser $homenet"
-    fi
+            echo "createTunnel; vpsuser|$vpsuser|homenet|$homenet|homenetport|$homenetport"
+		else
+					echo "sub createTunnel with parms"
+		fi
+			
     exit 0
   ;;
   logged) # All machines output logged to google tsv to screen
@@ -373,7 +402,7 @@ if [ $OptCmd ]; then
     $gformcat 2>&1 | cut -f 2,9 | sed 1,1d | awk '{ print $2"\t"$1 }' | sort -nu | grep '^[0-9]'
     exit 0
   ;;
-  join) #join network
+  join) # join network $1 $2 $3 $4 $5
 		ReadHomenetCFG;
     echo "establish connection needed parms (join) nowtime vpsuser sysname homenet"
     echo "($1) $2 $3 $4 $5"
@@ -381,7 +410,7 @@ if [ $OptCmd ]; then
     vpsuser=$3
     sysname=$4
     homenet=$5
-    echo "/usr/local/bin/rubyslippers.sh (join) $nowtime $vpsuser $sysname $homenet"
+    echo "/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet"
     exit 0
   ;;
   allsshids )# list all shhids only
@@ -404,6 +433,11 @@ if [ $OptCmd ]; then
     $gformcat 2>&1 | grep "$syshwid" | tail -n 1 | cut -f 9  # last sshid port number tunnel
     exit 0
   ;;
+  cleantmp) # cleantmpfiles
+		rm /tmp/findipaddress
+		rm /tmp/currentenv
+		rm /tmp/lastknown
+	;;
   *) # help
     echo "$(basename $0): (options) "
     grep "[a-z]) # " $(dirname $0)/$(basename "$0")
@@ -442,8 +476,8 @@ else
 fi
 ##
 ## cleanup
-rm /tmp/findipaddress
-rm /tmp/currentenv
-rm /tmp/lastknown
+#rm /tmp/findipaddress
+#rm /tmp/currentenv
+#rm /tmp/lastknown
 
 

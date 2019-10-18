@@ -22,23 +22,27 @@ Minimum requirements:
 
 ----
 1. Follow initial basic setup raspberry prefrences and configuration.  [raspi-config](https://www.raspberrypi.org/documentation/configuration/raspi-config.md)
-*	Set Locale
+*	Set Locale Language
 *	Set timezone
 *	Set Keyboard
 *	Under Interfacing Options select ssh
 *	change the default pi password with #> passwd
 	
 ----
-2. Configure home router assigning static IP address. Be sure to get mac address of raspberry pi to boot up with the same IP address. [many how-to videos](https://www.google.com/search?q=setup+static+ip+home+router+raspberry+pi&source=lnms&tbm=vid "many how-to videos").
+2. Configure home server router assigning static IP address. Be sure to get mac address of raspberry pi to boot up with the same IP address. [many how-to videos](https://www.google.com/search?q=setup+static+ip+home+router+raspberry+pi&source=lnms&tbm=vid "many how-to videos").
 ----
-3. Configure home router port forward to raspberry pi IP address.
+3. Configure home router port forward outside network to raspberry pi IP address. (reference your manufacture/brand *security risks* choose a non-standard number of obfuscation)
 ~~~~
 isServer=yes
 sshinport=686
-~~~~
-The first virtual loopback ssh port starts from 2200.  Each remote client will increment by 1 from starting port number. eg. 2201
 
-4. Create Google Sheet to use as a database.
+~~~~
+4. The first virtual loopback ssh port starts from 2200.  Increment +1 for each raspi remote client.  
+~~~~
+vloopstart=2200
+~~~~
+
+5. Create Google Sheet to use as a database.
 
 * example: piConnectBack
 * goto Tools menu, select Create form
@@ -51,11 +55,12 @@ Create with 8 short answer text, all required questions.
 * OutsideIP
 * Release
 * SysArch
+* RpiModel
 * Kernel
 * Homenet
 * ISPname
 
-Form -> goto live form  and copy url 
+In your google sheet goto Form and copy url key. 
 ~~~~
 gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
 ~~~~
@@ -71,13 +76,20 @@ glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?out
 ~~~~
 
 ----
+Program help (output mono text example)
 
-Server side setup:
+Server (aka Home) side setup:
 
 Edit rubyslippers.sh
 * incomming ssh port
 * Google web publish url
 * Google live form url
+Add to root crontab
 
-Client side:
+Client (aka RemoteRaspi) side setup:
+Edit rubyslippers.sh
+* Google web publish url
+* Google live form url
+Add to vpsuser crontab
+
 
