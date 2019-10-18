@@ -374,6 +374,7 @@ if [ $OptCmd ]; then
     exit 0
   ;;
   join) #join network
+		ReadHomenetCFG;
     echo "establish connection needed parms (join) nowtime vpsuser sysname homenet"
     echo "($1) $2 $3 $4 $5"
     nowtime=$2
