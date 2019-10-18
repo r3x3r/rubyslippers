@@ -63,9 +63,44 @@ seddecode="sed -f /usr/local/bin/urldecode.sed"
 
 nowtime="$(date +%Y%m%d-%H:%M)"
 #
-# shorten the wget 
-#gformcat="wget -qO- https://docs.google.com/spreadsheets/d/$GFidfor/export?format=tsv&id=$GFidfor&gid=$GFuid"
+# shorten the wget google live form output 
 gformcat="wget -qO- $glivetsvurl"
+
+GetSysHwid(){  ## raspberry cpu serial number
+#if [ $UID -ne 0 ]; then
+# echo "must be root"
+# exit 1
+#fi
+## check for syshwid, if syshwid cannot be determined, unknown cputype/enviornment and exit
+## determine arm/intel/virtual
+syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
+rpimodel="$(dtc -I fs /sys/firmware/devicetree/base 2>&1 | grep 'model = ' | cut -d\" -f2 )"
+#echo "ARM $syshwid"
+if [ -z "$rpimodel" ]; then
+  echo "unknown raspberry pi model aaanew"
+  exit 1
+fi
+if [ -z $syshwid  ]; then
+  # if not ARM processor 
+  echo "not ARPM raspberry pi cpu"
+  exit 1
+##for other cpu types looking for Serial Number or UUID virtual machines
+##syshwid="$(/usr/sbin/dmidecode | grep "Serial Number:" | head -n 1 | awk '{ print ":"$3":" }' )"
+## if not ARM processor look for INTEL $syshwid
+# if [ "$syshwid" = ":Not:" ]; then
+#   #Virtual cpu find partial UUID string
+#   syshwid="$(/usr/sbin/dmidecode| grep UUID | head -n 1 | cut -d\- -f5 | awk '{ print ":"$1":" }' )"
+#   #echo "VM $syshwid"
+#   #vmuuid="$(/usr/sbin/dmidecode| grep UUID | head -n 1 | awk '{ print $2 }' )"
+#   #echo "vmuuid $vmuuid"
+#     if [ -z "$syshwid" ]; then
+#       echo "unknown hardware: unable to get system hardware id"
+#       exit 1
+#     fi
+# fi
+
+fi
+}  # end of GetSysHwid
 
 setup_server(){
 deplist="wget curl md5sum awk cut grep"
@@ -104,42 +139,7 @@ if [ -z "$notinstalled" ]; then
 fi
 } ## end of setup_client
 
-GetSysHwid(){  ## raspberry cpu serial number
-#if [ $UID -ne 0 ]; then
-# echo "must be root"
-# exit 1
-#fi
-## check for syshwid, if syshwid cannot be determined, unknown cputype/enviornment and exit
-## determine arm/intel/virtual
-syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
-#echo "ARM $syshwid"
-if [ -z $syshwid  ]; then
-	# if not ARM processor 
-	echo "not ARPM raspberry pi cpu"
-	exit 1
-##for other cpu types looking for Serial Number or UUID virtual machines
-##syshwid="$(/usr/sbin/dmidecode | grep "Serial Number:" | head -n 1 | awk '{ print ":"$3":" }' )"
-## if not ARM processor look for INTEL $syshwid
-# if [ "$syshwid" = ":Not:" ]; then
-#   #Virtual cpu find partial UUID string
-#   syshwid="$(/usr/sbin/dmidecode| grep UUID | head -n 1 | cut -d\- -f5 | awk '{ print ":"$1":" }' )"
-#   #echo "VM $syshwid"
-#   #vmuuid="$(/usr/sbin/dmidecode| grep UUID | head -n 1 | awk '{ print $2 }' )"
-#   #echo "vmuuid $vmuuid"
-#			if [ -z "$syshwid" ]; then
-#				echo "unknown hardware: unable to get system hardware id"
-#				exit 1
-#			fi
-# fi
 
-fi
-
-#if [ -z $syshwid ]; then
-#  echo no syshwid
-#  exit 1
-#fi
-
-}  # end of GetSysHwid
 
 
 GetSysNetwork(){  ## system network interfaces
@@ -177,7 +177,11 @@ GetSysNetwork(){  ## system network interfaces
 	gformsysarch=$(grep SysArch $callhomecfg | cut -d\| -f1)
   sysarchgform="$gformsysarch=$sysarch"
 
-	echo "$sysname $localip $lsbrelease $syskernel $sysarch" | $seddecode 
+	rpimodel="$(dtc -I fs /sys/firmware/devicetree/base 2>&1 | grep 'model = ' | cut -d\" -f2 | $sedencode )"
+	gformrpimodel=$(grep RpiModel $callhomecfg | cut -d\| -f1 )
+	rpimodelgform="$gformrpimodel=$rpimodel" ##newinfo
+
+	echo "$sysname|$localip|$lsbrelease|$syskernel|$sysarch|$rpimodel|" | $seddecode 
 }  # end of GetSysNetwork interfaces
 
 
@@ -188,17 +192,20 @@ createTunnel() {
   #sudo -u autossh bash -c '/usr/local/bin/autossh -M 0 -f autossh@homeserver01 -p 9991 -N -o "ExitOnForwardFailure=yes" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R 8081:localhost:9991'
   #note  autossh -M pi3_checking_port -fN -o "PubkeyAuthentication=yes" -o "StrictHostKeyChecking=false" -o "PasswordAuthentication=no" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R vps_ip:vps_port:localhost:pi_port -i /home/pi/.ssh/id_rsa vps_user@vps_port
 
-if [ -z "$rexnet" -o -z "$rexnetport" -o -z "$homenet" ]; then
-  echo "no rexnet or rexnetport or homenet"
+##if [ -z "$rexnet" -o -z "$rexnetport" -o -z "$homenet" ]; then
+if [ -z "$vpsuser" -o -z "$homenet" -o -z "$homenetport" ]; then
+  echo "no $vpsuser or $homenet or $homenetport"
   exit 1
 fi
- echo " autossh -M 0 -f $vpsuser@$rexnet -p $rexnetport -N -o \"StrictHostKeyChecking=false\" -o \"PasswordAuthentication=no\" -o \"ExitonForwardFailure=yes\" -o \"ServerAliveInterval 60\" -o \"ServerAliveCountMax 3\" -R $homenet:localhost:22 -vvv "
+
+ echo "** autossh -M 0 -f $vpsuser@$homenet -p $homenetport -N -o \"StrictHostKeyChecking=false\" -o \"PasswordAuthentication=no\" -o \"ExitonForwardFailure=yes\" -o \"ServerAliveInterval 60\" -o \"ServerAliveCountMax 3\" -R $homenet:localhost:22 -vvv "
+ #echo " autossh -M 0 -f $vpsuser@$rexnet -p $rexnetport -N -o \"StrictHostKeyChecking=false\" -o \"PasswordAuthentication=no\" -o \"ExitonForwardFailure=yes\" -o \"ServerAliveInterval 60\" -o \"ServerAliveCountMax 3\" -R $homenet:localhost:22 -vvv "
 #  autossh -M 0 -f $vpsuser@$rexnet -p $rexnetport -N -o "StrictHostKeyChecking=false" -o "PasswordAuthentication=no" -o "ExitonForwardFailure=yes" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R $homenet:localhost:22 -vvv
 if [[ $? -eq 0 ]]; then
 # send info to homeserver
-  echo "homenet|$homenet|rexnet|$rexnet|rexnetport|$rexnetport|sysname|$sysname|vpsuser|$vpsuser|" 
-  echo "rsh -p $rexnetport $vpsuser@$rexnet \"/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet\" "
-  echo "called home $nowtime"
+  echo "homenet|$homenet|homenetport|$homenetport|sysname|$sysname|vpsuser|$vpsuser|" 
+  echo "rsh -p $homenetport $vpsuser@$homenet \"/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet\" "
+  echo "join $nowtime $vpsuser $sysname $homenet $homenetport "
   exit 0
  else
   echo "homenet|$homenet|rexnet|$rexnet|rexnetport|$rexnetport|sysname|$sysname|vpsuser|$vpsuser|" 
@@ -273,12 +280,18 @@ if [ -f $homenetcfg ]; then
 	syshwid=$(head -n 1 $homenetcfg | awk '{print $2}')
 else
 	#	echo "$homenetcfg not present find online by syshwid"
-		lasthomenet=$( $gformcat | grep $syshwid | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
+	# check for $syshwid if not present
+	syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
+	if [ -z $syshwid ]; then
+		echo "no syshwid "
+		exit 1
+	fi
+		lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
 		homenet=$lasthomenet
 		if [ -z $lasthomenet ]; then
 		#	echo "$homenetcfg NEW syshwid"
 		#	echo "lasthomenet null"
-			lastonessh=$( $gformcat | sed 's/\r//'| cut -f 9 | grep . | sort -n |  tail -n 1 )
+			#lastonessh=$( $gformcat | sed 's/\r//'| cut -f 9 | grep . | sort -n |  tail -n 1 )
 			nexthomenet=$(( $lastonessh + 1 ))
 			homenet=$nexthomenet
 			echo "$nexthomenet $syshwid" > $homenetcfg
@@ -316,7 +329,7 @@ if [ $OptCmd ]; then
        for i in $(grep 'entry.[0-9]*' /tmp/gliveform | cut -d\" -f2 | sed -e 's/"//g'); do
          echo "|$i|$(grep "$i" /tmp/gliveform -B 3 | head -n 1 | cut -d\" -f2)|" | tee -a $callhomecfg
        done
-     rm /tmp/gliveform
+# aanew     rm /tmp/gliveform
     else
       echo "google form: $gliveformurl"
       cat $callhomecfg
