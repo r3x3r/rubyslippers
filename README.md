@@ -36,6 +36,7 @@ Minimum requirements:
 ~~~~
 isServer=yes
 sshinport=686
+vpsuser=pi
 ~~~~
 ----
 4. Choose your virtual loopback ssh starting port.  Begins at 2200 and increments +1 for each unique hawrdware ID raspi remote client not found in google sheet online.  
