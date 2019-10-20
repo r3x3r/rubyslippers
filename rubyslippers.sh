@@ -48,15 +48,17 @@ gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
 # entire document 
 # checkbox 
 #
-glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?output=tsv"
+glivetsvurl="https://docs.google.com/spreadsheets/d/1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY/export?format=tsv&id=1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY&gid=1593438779"
+#glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?output=tsv"
 #
 ## end of Google Form Configuration 
 ## 
 
 # Virtual loopback sshport start number to connect into remote raspberry pi
 # additional clients will increment by 1
-# example server=2200 *try not to use 00reserved  rpi1=2201   rpi2=2202
-vloopstart=2200
+# last digit will increment
+# example  rpi1=2201   rpi2=2202
+vloopstart=2201
 
 # default config files
 homenetcfg=/opt/share/callhome.homenet
@@ -121,7 +123,7 @@ fi
 }  # end of GetSysHwid
 
 # minimum additional software packages for home server
-setup_server(){
+appdep_server(){
 deplist="wget curl md5sum awk cut grep"
 for dep in $deplist ; do
   isinstalled=$(which $dep)
@@ -138,7 +140,7 @@ fi
 }
 
 # minimum additional software packages for client remote
-setup_client(){
+appdep_client(){
 deplist="wget curl md5sum awk cut grep autossh"
 for dep in $deplist ; do
   isinstalled=$(which $dep)
@@ -344,8 +346,9 @@ else
 fi # file not exists
 }  ## end of ReadHomenetCFG
 
+
+
 DidMyinfoChange(){
-ReadHomenetCFG
 
 ## getsysinfo for the vars
 if [ $isServer = "yes" ]; then  #add :sshinport to home IP
@@ -370,15 +373,56 @@ else
 # echo "curl https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit "
 #GetHomenetIPaddr
 
-  if [[ "$isServer" = "yes" ]]; then
+  if [ $isServer = "yes" ]; then
 	#gethomenet
     #outsideipgformSPORT=$(echo $outsideipgform:$sshinport | sed -f /usr/lib/cgi-bin/urlencode.sed)
     outsideipgformSPORT=$(echo $outsideipgform:$sshinport | $sedencode)
-    curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgformSPORT -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+	echo "opps server"
+####    curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgformSPORT -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
 
   else
+	echo $callhomecfg
+  gformhostname=$(grep Hostname $callhomecfg | cut -d\| -f2)
+  sysnamegform="$gformhostname=$sysname"
+
+  gformhwid=$(grep HardwareID $callhomecfg | cut -d\| -f2)
+  syshwidgform="$gformhwid=$syshwid"
+
+  gformlocalip=$(grep IPlocal $callhomecfg | cut -d\| -f2)
+  localipgform="$gformlocalip=$localip"
+
+	gformoutsideip=$(grep OutsideIP $callhomecfg | cut -d\| -f2)
+	outsideipgform="$gformoutsideip=$(cat /tmp/currentenv | cut -d\, -f4)"
+
+  gformrelease=$(grep Release $callhomecfg | cut -d\| -f2)
+  lsbreleasegform="$gformrelease=$lsbrelease"
+
+  gformkernel=$(grep Kernel $callhomecfg | cut -d\| -f2)
+  syskernelgform="$gformkernel=$syskernel"
+
+  gformsysarch=$(grep SysArch $callhomecfg | cut -d\| -f2)
+  sysarchgform="$gformsysarch=$sysarch"
+
+	gformhomenet=$(grep Homenet $callhomecfg | cut -d\| -f2)
+	homenetgform="$gformhomenet=$(cat /opt/share/callhome.homenet | awk '{ print $1 }')"
+
+	gformispname=$(grep ISPname $callhomecfg | cut -d\| -f2)
+	ispnamegform="$gformispname=$(cat /tmp/currentenv | cut -d\, -f9-14 | $sedencode )"
+
+# gformrpimodel=$(grep RpiModel $callhomecfg | cut -d\| -f2 )
+#  rpimodelgform="$gformrpimodel=$rpimodel" ##newinfo
+
 		### is a client submit
-    curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+    ##curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+#GoogleFORMID="https://docs.google.com/forms/d/18LutvRjuvMAYoUnatjkyuRPHYwzIPpr4Me2pRMSibDY/edit"
+GoogleSheetURL="https://docs.google.com/spreadsheets/d/1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY/edit#gid=1593438779"
+GFormID=$(echo $GoogleFORMID | cut -d\/ -f6)
+#GFormID=18LutvRjuvMAYoUnatjkyuRPHYwzIPpr4Me2pRMSibDY
+	###echo "https://docs.google.com/forms/d/$GFormID/formResponse"
+  echo "|$sysnamegform|$syshwidgform|$localipgform|$lsbreleasegform|$syskernelgform|$homenetgform|$outsideipgform|$ispnamegform|$sysarchgform|" | $seddecode
+  curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+
+##  curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
   fi
 
 fi
@@ -405,13 +449,14 @@ if [ $OptCmd ]; then
   setupServer) # initial server setup must be root
 		amiroot setupserveropts
     GetSysHwid;
-    setup_server;
+    appdep_server;
+
     exit 0
   ;;
   setupClient) # initial setup must be root
 		amiroot setupClient
     GetSysHwid;
-    setup_client;
+    appdep_client;
 		ReadHomenetCFG;
     if [ ! -f $callhomecfg ]; then
       curl -s $gliveformurl | grep 'entry.[0-9]*' | sed -e 's/ /\n/g' > /tmp/gliveform
@@ -427,6 +472,8 @@ if [ $OptCmd ]; then
    ;;
   callhomefirst) # callhome first to test ssh call home
 		echo "callhome first ssh to save password and ssh keys here"
+		GetSysHwid;
+    ReadHomenetCFG;
 		exit 0
 	;;
   showconnected) # show machies connected to server
@@ -501,6 +548,7 @@ if [ $OptCmd ]; then
     echo "syshwid=$syshwid"
     GetSysNetwork debuginfo   ###
 		echo "==== last 3 lines ======="
+	echo "$gformcat"
     $gformcat 2>&1 | grep "$syshwid" | tail -n 3
     echo " "
     exit 0
@@ -530,35 +578,6 @@ if [ $OptCmd ]; then
 esac
 fi
 
-## getsysinfo for the vars
-#if [ $isServer = "yes" ]; then  #add :sshinport to home IP
-#	echo "$sysname,$syshwid,$localip,$outsideip:$sshinport,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv 
-#else
-#	echo "$sysname,$syshwid,$localip,$outsideip,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv 
-#fi
-## get last known based on syshwid
-#$gformcat | grep "$syshwid"  | cut -f2- | tail -n 1 | sed 's/\r//' | sed -e 's/\t/,/g' > /tmp/lastknown
-#
-#envcurrent="$(md5sum /tmp/currentenv | awk '{ print $1 }')"
-#knownlast="$(md5sum /tmp/lastknown | awk '{ print $1 }')"
-##cat /tmp/currentenv
-##cat /tmp/lastknown
-###echo "last    = $knownlast"
-#if [[ "$knownlast" = "$envcurrent" ]]; then
-#	echo "nothing changed" >> /dev/null
-#else
-#	echo "something changed!!!" >> /dev/null
-##	echo "curl https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit "
-#	if [[ "$isServer" = "yes" ]]; then
-#		#outsideipgformSPORT=$(echo $outsideipgform:$sshinport | sed -f /usr/lib/cgi-bin/urlencode.sed)
-#		outsideipgformSPORT=$(echo $outsideipgform:$sshinport | $sedencode)
-#		curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgformSPORT -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
-#	else
-#		curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
-#	fi
-#
-#fi
-##
 ## cleanup
 #rm /tmp/findipaddress
 #rm /tmp/currentenv
