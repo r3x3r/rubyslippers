@@ -1,0 +1,567 @@
+#!/bin/bash
+
+# Programmer:  @r3x3r
+# BsidesDFW 2019
+
+# SSH INBOUND PORT NUMBER
+# sorry IPv4 only
+isServer=no
+
+# Important:identifier here
+# Obfuscated choose your own "random" incomming home port number from your google sheet
+sshinport=10069
+
+# client login username, usualy pi - default
+vpsuser=pi
+
+# checkfor homenetcfg file 
+#  if not present, 
+#     if syshwid online not recorded before,
+#       get last sshid and + 1
+#  			getoutside ipinfo
+#  			(submit new info and exit)
+#  present, homenet is contents of lastonline
+# 
+#  write currentconfig/homesshid to /tmp/currentenv
+#  
+#  export the google form to tsv and look for last connection
+#  compare currentonline with lastknownonline
+#  if diffrent
+#     then submit existing homecfg with currentonline
+#  exit
+
+#dependencies: /usr/local/bin/urlencode.sed
+#              /usr/local/bin/urldecode.sed
+
+# Create a google sheet form with these Elements
+# form input questions are: 
+#  Hostname   HardwareID   IPlocal   OutsideIP   Release   Kernel   SysArch   Homenet   ISPname  RpiModel
+# simple text one line user input
+# Form -> goto live form  and copy url
+gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
+#
+# After creating personal google form with as formnamed entries
+# File - > publish to Web
+# Link section
+# entire document - Tab-seperated values (.tsv)
+# expand Published Contents & settings
+# entire document 
+# checkbox 
+#
+glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?output=tsv"
+#
+## end of Google Form Configuration 
+## 
+
+# Virtual loopback sshport start number to connect into remote raspberry pi
+# additional clients will increment by 1
+# example server=2200 *try not to use 00reserved  rpi1=2201   rpi2=2202
+vloopstart=2200
+
+# default config files
+homenetcfg=/opt/share/callhome.homenet
+homenetdb=/opt/share/homenet.db
+callhomecfg=/opt/share/callhome.cfg
+## formated > portnumber $syshwid
+
+#  main program action 
+OptCmd=$1
+
+#  extra files used for sed encode/decode 
+sedencode="sed -f /usr/local/bin/urlencode.sed"
+seddecode="sed -f /usr/local/bin/urldecode.sed"
+
+
+# get execution date time stamp
+nowtime="$(date +%Y%m%d-%H:%M)"
+
+# shorten the wget command to dump database to STDOUT
+gformcat="wget -qO- $glivetsvurl"
+
+amiroot(){
+  if [ $UID -ne 0 ]; then
+    echo "Must be root or sudo module $1 "
+    exit 1
+  fi
+
+}
+# should be root
+GetSysHwid(){  ## raspberry cpu serial number
+# optional 
+#amiroot syshwid
+## check for syshwid, if syshwid cannot be determined, unknown cputype/enviornment and exit
+## determine arm/intel/virtual
+syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
+rpimodel="$(dtc -I fs /sys/firmware/devicetree/base 2>&1 | grep 'model = ' | cut -d\" -f2 )"
+#echo "ARM $syshwid"
+if [ -z "$rpimodel" ]; then
+  echo "unknown raspberry pi model"
+  exit 1
+fi
+if [ -z $syshwid  ]; then
+  # if not ARM processor 
+  echo "not ARPM raspberry pi cpu"
+  exit 1
+##for other cpu types looking for Serial Number or UUID virtual machines
+##syshwid="$(/usr/sbin/dmidecode | grep "Serial Number:" | head -n 1 | awk '{ print ":"$3":" }' )"
+## if not ARM processor look for INTEL $syshwid
+# if [ "$syshwid" = ":Not:" ]; then
+#   #Virtual cpu find partial UUID string
+#   syshwid="$(/usr/sbin/dmidecode| grep UUID | head -n 1 | cut -d\- -f5 | awk '{ print ":"$1":" }' )"
+#   #echo "VM $syshwid"
+#   #vmuuid="$(/usr/sbin/dmidecode| grep UUID | head -n 1 | awk '{ print $2 }' )"
+#   #echo "vmuuid $vmuuid"
+#     if [ -z "$syshwid" ]; then
+#       echo "unknown hardware: unable to get system hardware id"
+#       exit 1
+#     fi
+# fi
+
+fi
+}  # end of GetSysHwid
+
+# minimum additional software packages for home server
+setup_server(){
+deplist="wget curl md5sum awk cut grep"
+for dep in $deplist ; do
+  isinstalled=$(which $dep)
+    if [ -z "$isinstalled" ] ; then
+      notinstalled="$notinstalled $dep"
+    fi
+done
+if [ -z "$notinstalled" ]; then
+    echo "all ok: $deplist" > /dev/null
+  else
+  echo "not installed: $notinstalled"
+fi
+
+}
+
+# minimum additional software packages for client remote
+setup_client(){
+deplist="wget curl md5sum awk cut grep autossh"
+for dep in $deplist ; do
+  isinstalled=$(which $dep)
+    if [ -z "$isinstalled" ] ; then
+#      notinstalled="$notinstalled $dep"
+			echo "install $dep?"
+			read installit
+			case $installit in
+				y|Y) apt install $dep;;
+				n|N) echo "not install $dep";;
+			esac
+		fi
+done
+if [ -z "$notinstalled" ]; then
+	echo "all ok: $deplist" > /dev/null
+	else
+	echo "not installed: $notinstalled"
+fi
+} ## end of setup_client
+
+
+
+
+GetSysNetwork(){  ## system and network information
+# sed encode the output for google url 
+	amiroot getsysnetwork
+		#echo "callhomecfg not exists. please run setupClient"
+		#exit 1
+	
+	sysname="$(hostname | $sedencode )"
+	gformhostname=$(grep Hostname $callhomecfg | cut -d\| -f1)
+	sysnamegform="$gformhostname=$sysname"
+	gformhwid=$(grep HardwareID $callhomecfg | cut -d\| -f2)
+	syshwidgform="$gformhwid=$syshwid"
+	localnet=""
+  for i in $(seq 1 $(ip addr list| grep -w 'inet' | grep -v '127.0.0' | wc -l)); do
+   localnet="$localnet $(ip addr list | grep -w inet | grep -v '127.0.0' | head -n $i | tail -n 1 | cut -d\/ -f1 | awk '
+{ print $2 }')"
+  done
+	localip="$(echo $localnet | $sedencode)"
+	gformlocalip=$(grep IPlocal $callhomecfg | cut -d\| -f1)
+	localipgform="$gformlocalip=$localip"
+	lsbrelease="$(lsb_release -a 2>&1 | grep Description | cut -d\: -f2- | cut -c2- | $sedencode )"
+	if [ -z $lsbrelease ]; then
+		lsbrelease="$(lsb_release 2>&1 | sed -n 1p | $sedencode )"
+	fi
+	if [ -z $lsbrelease ]; then
+		lsbrelease="no-lsb-release"
+    exit 1
+  fi
+	gformrelease=$(grep Release $callhomecfg | cut -d\| -f1)
+  lsbreleasegform="$gformrelease=$lsbrelease"
+  syskernel="$(cat /proc/version | awk '{ print $3 }' | $sedencode )"
+	gformkernel=$(grep Kernel $callhomecfg | cut -d\| -f1)
+  syskernelgform="$gformkernel=$syskernel"
+  sysarch="$(cat /proc/cpuinfo | grep -w 'model name' | tail -n 1 | cut -d\: -f2-|cut -c2- | $sedencode )"
+	gformsysarch=$(grep SysArch $callhomecfg | cut -d\| -f1)
+  sysarchgform="$gformsysarch=$sysarch"
+	#anew feature?
+	rpimodel="$(dtc -I fs /sys/firmware/devicetree/base 2>&1 | grep 'model = ' | cut -d\" -f2 | $sedencode )"
+	gformrpimodel=$(grep RpiModel $callhomecfg | cut -d\| -f1 )
+	rpimodelgform="$gformrpimodel=$rpimodel" ##newinfo
+
+# remember to decode back to plain txt
+	echo "$sysname|$localip|$lsbrelease|$syskernel|$sysarch|$rpimodel|" | $seddecode 
+}  # end of GetSysNetwork interfaces
+
+# using ouput of gform and incoming obfuscated port number defined 
+GetHomenetIPaddr() { 
+
+homenetall="$($gformcat | grep ":$sshinport" | cut -f 5 | tail -n 1 | awk '{ print $1 }')"
+homenet="$(echo $homenetall | cut -d\: -f1)"
+homenetport="$(echo $homenetall | cut -d\: -f2)"
+
+
+}
+
+# clickshoes to call home
+
+createTunnel() {
+  #/usr/bin/ssh -N -R rexer@$rexnet 
+  #/usr/bin/ssh -N -R $homenet:localhost:22 -p $rexnetport rexer@$rexnet 
+  #autossh -M 0 homeserver01 -p 9991 -N -R 8081:localhost:9991 -vvv
+  #sudo -u autossh bash -c '/usr/local/bin/autossh -M 0 -f autossh@homeserver01 -p 9991 -N -o "ExitOnForwardFailure=yes" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R 8081:localhost:9991'
+  #note  autossh -M pi3_checking_port -fN -o "PubkeyAuthentication=yes" -o "StrictHostKeyChecking=false" -o "PasswordAuthentication=no" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R vps_ip:vps_port:localhost:pi_port -i /home/pi/.ssh/id_rsa vps_user@vps_port
+
+#sub local vars
+vpsuser=$1
+homenet=$2
+homenetport=$3
+
+
+##if [ -z "$rexnet" -o -z "$rexnetport" -o -z "$homenet" ]; then
+if [ -z "$vpsuser" -o -z "$homenet" -o -z "$homenetport" ]; then
+	echo "find home network IP from google sheet tsv data"
+  echo "no vpsuser $vpsuser or homenet $homenet or homenetport $homenetport"
+  exit 1
+fi
+## apply security model risks here
+ ##** autossh -M 0 -f $vpsuser@$homenet -p $homenetport -N -o \"StrictHostKeyChecking=false\" -o \"PasswordAuthentication=no\" -o \"ExitonForwardFailure=yes\" -o \"ServerAliveInterval 60\" -o \"ServerAliveCountMax 3\" -R $homenet:localhost:22 -vvv "
+ #echo " autossh -M 0 -f $vpsuser@$rexnet -p $rexnetport -N -o \"StrictHostKeyChecking=false\" -o \"PasswordAuthentication=no\" -o \"ExitonForwardFailure=yes\" -o \"ServerAliveInterval 60\" -o \"ServerAliveCountMax 3\" -R $homenet:localhost:22 -vvv "
+
+  autossh -M 0 -f $vpsuser@$homenet -p $homenetport -N -o "StrictHostKeyChecking=false" -o "PasswordAuthentication=no" -o "ExitonForwardFailure=yes" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R $homenet:localhost:22 -vvv
+
+if [[ $? -eq 0 ]]; then
+# send info to homeserver
+  echo "homenet|$homenet|homenetport|$homenetport|sysname|$sysname|vpsuser|$vpsuser|" 
+# default install location in /usr/local/bin?
+# default remote shell to homenet and run # usr/local/bin/rubyslippers.sh join nowtime vpsuser sysname homenet
+  rsh -p $homenetport $vpsuser@$homenet \"/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet\" 
+  echo "/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet $homenetport "
+  exit 0
+ else
+  echo "homenet|$homenet|homenetport|$homenetport|sysname|$sysname|vpsuser|$vpsuser|" 
+  echo "An error occurred calling home.  code $?"
+  exit 1
+fi
+
+}
+
+GetOutSideNet(){ ## Outside IP information from https://www.ip-adress.com/index*
+wget -qO- https://www.ip-adress.com/what-is-my-ip-address | sed -e 's/<tr>/|/g' -e 's/<td>/|/g' | sed "s/<[^>]\+>//g" | grep '^|' > /tmp/findipaddress
+
+if [ -z /tmp/findipaddress ]; then
+  echo "could not contact https://www.ip-address.com"
+  exit 1
+fi
+
+#parse the output of urlsite
+MyIPAddress=$(grep -w "IP Address" /tmp/findipaddress | cut -d\| -f 3)
+CName=$(grep -w "Country" /tmp/findipaddress | grep -v Code | cut -d\| -f 3 | sed -e 's/ //g')
+Region=$(grep -w "State" /tmp/findipaddress | grep -v Code | cut -d\| -f3 | sed -e 's/ //g')
+City=$(grep -w "City" /tmp/findipaddress | cut -d\| -f3 | sed -e 's/ //g')
+Zipcode=$(grep -w "Postal Code" /tmp/findipaddress | cut -d\| -f3 | sed -e 's/ //g')
+Latitude="($(grep -w "Latitude" /tmp/findipaddress | cut -d\| -f3- | cut -d\& -f1))"
+Longtitude="($(grep -w "Longitude" /tmp/findipaddress | cut -d\| -f3- | cut -d\& -f1))"
+MyISP=$(grep -w "ISP" /tmp/findipaddress | cut -d\| -f3- | sed -e 's/ //g' )
+
+#echo "IP Address=$MyIPAddress"
+outsideip=$MyIPAddress
+#echo "$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude"
+#ispnameURL="$(echo $CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude | sed -f /usr/lib/cgi-bin/urlencode.sed)"
+ispnameURL="$(echo $CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude | $sedencode )"
+gformispname=$(grep ISPname $callhomecfg | cut -d\| -f1 )
+ispnamegform="$gformispname=$ispnameURL"
+#HOMENET is supoosed to be defined now
+gformhomenet=$(grep Homenet $callhomecfg | cut -d\| -f1 )
+homenetgform="$gformhomenet=$homenet"
+gformpubaddr=$(grep OutsideIP $callhomecfg | cut -d\| -f1)
+outsideipgform="$gformpubaddr=$outsideip"
+
+#if [ $1 = debuginfo ]; then
+echo "MyIPAddress = $MyIPAddress"
+echo "sysname $sysnamegform" | $seddecode
+echo "syshwid $syshwidgform" | $seddecode
+echo "localip $localipgform" | $seddecode
+echo "lsbrelease $lsbreleasegform" | $seddecode
+echo "syskernel $syskernelgform" | $seddecode
+echo "homenet $homenetgform" | $seddecode
+echo "outsideip $outsideipgform" | $seddecode
+echo "ispname $ispnamegform" | $seddecode
+echo "sysarch $sysarchgform" | $seddecode
+#read anykeyedpressed
+#fi
+
+}
+
+
+#if [ ! -f $homenetcfg ]; then
+#  echo "please run setup for $homenetcfg"
+#  exit 1
+#fi
+#if [ ! -f $callhomecfg ]; then
+#  echo "please run setup for $callhomecfg"
+#  exit 1
+#fi
+
+ReadHomenetCFG(){
+if [ -f $homenetcfg ]; then
+	homenet=$(head -n 1 $homenetcfg | awk '{print $1}')
+	syshwid=$(head -n 1 $homenetcfg | awk '{print $2}')
+else
+	#	echo "$homenetcfg not present find online by syshwid"
+	# check for $syshwid if not present
+	syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
+	if [ -z $syshwid ]; then
+		echo "no syshwid "
+		exit 1
+	fi
+		lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
+		homenet=$lasthomenet
+		if [ -z $lasthomenet ]; then
+		#	echo "$homenetcfg NEW syshwid"
+		#	echo "lasthomenet null"
+			#lastonessh=$( $gformcat | sed 's/\r//'| cut -f 9 | grep . | sort -n |  tail -n 1 )
+			nexthomenet=$(( $lastonessh + 1 ))
+			homenet=$nexthomenet
+			echo "$nexthomenet $syshwid" > $homenetcfg
+		fi # nexthomenet
+		touch -p $(dirname $homenetcfg)
+		#mkdir -p $(dirname $homenetcfg)
+		echo "$lasthomenet $syshwid" > $homenetcfg
+fi # file not exists
+}  ## end of ReadHomenetCFG
+
+DidMyinfoChange(){
+ReadHomenetCFG
+
+## getsysinfo for the vars
+if [ $isServer = "yes" ]; then  #add :sshinport to home IP
+  echo "$sysname,$syshwid,$localip,$outsideip:$sshinport,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv
+else
+  echo "$sysname,$syshwid,$localip,$outsideip,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv
+fi
+# get last known based on syshwid
+$gformcat | grep "$syshwid"  | cut -f2- | tail -n 1 | sed 's/\r//' | sed -e 's/\t/,/g' > /tmp/lastknown
+
+envcurrent="$(md5sum /tmp/currentenv | awk '{ print $1 }')"
+knownlast="$(md5sum /tmp/lastknown | awk '{ print $1 }')"
+#cat /tmp/currentenv
+#cat /tmp/lastknown
+##echo "last    = $knownlast"
+if [[ "$knownlast" == "$envcurrent" ]]; then
+  #echo "nothing changed" >> /dev/null
+  echo "nothing changed"
+else
+  #echo "something changed!!!" >> /dev/null
+  echo "something changed!!!" 
+# echo "curl https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit "
+#GetHomenetIPaddr
+
+  if [[ "$isServer" = "yes" ]]; then
+	#gethomenet
+    #outsideipgformSPORT=$(echo $outsideipgform:$sshinport | sed -f /usr/lib/cgi-bin/urlencode.sed)
+    outsideipgformSPORT=$(echo $outsideipgform:$sshinport | $sedencode)
+    curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgformSPORT -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+
+  else
+		### is a client submit
+    curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+  fi
+
+fi
+
+
+}
+
+#GetSysNetwork;
+#GetOutSideNet;
+#GetHomenetIPaddr;
+
+
+## main shell execution (verb) options and variables
+if [ $OptCmd ]; then
+ case $OptCmd in
+  installfiles) # copy files in /usr/local/bin  must be root
+		amiroot toinstallfiles
+		#cp urlencode.sed /usr/local/bin
+		#cp urldecode.sed /usr/local/bin
+		#cp $0 /usr/local/bin
+		echo "copy rubyslippers package to /usr/local/bin"
+		exit 0
+	;;
+  setupServer) # initial server setup must be root
+		amiroot setupserveropts
+    GetSysHwid;
+    setup_server;
+    exit 0
+  ;;
+  setupClient) # initial setup must be root
+		amiroot setupClient
+    GetSysHwid;
+    setup_client;
+		ReadHomenetCFG;
+    if [ ! -f $callhomecfg ]; then
+      curl -s $gliveformurl | grep 'entry.[0-9]*' | sed -e 's/ /\n/g' > /tmp/gliveform
+       for i in $(grep 'entry.[0-9]*' /tmp/gliveform | cut -d\" -f2 | sed -e 's/"//g'); do
+         echo "|$i|$(grep "$i" /tmp/gliveform -B 3 | head -n 1 | cut -d\" -f2)|" | tee -a $callhomecfg
+       done
+			rm /tmp/gliveform
+    else
+      echo "google form: $gliveformurl"
+      cat $callhomecfg
+    fi
+    exit 0
+   ;;
+  callhomefirst) # callhome first to test ssh call home
+		echo "callhome first ssh to save password and ssh keys here"
+		exit 0
+	;;
+  showconnected) # show machies connected to server
+    if [ $isServer = "yes" ]; then
+			if [ -f $homenetdb ]; then
+	      echo "| Time | User | hostname | ssh port  "
+					#wiki format cat $homenetdb | sed -e 's/ / |\^ /g' -e 's/^/|\^ /g' -e 's/$/|\n/g'
+					cat $homenetdb | sed -e 's/ / | /g'
+				else
+					echo "no nohomenetdb"
+					exit 1
+			fi
+    else
+      echo "not a server"
+    fi
+    exit 0
+  ;;
+  tapshoes) # no place like home
+    GetSysHwid;
+		ReadHomenetCFG;
+		GetHomenetIPaddr;
+    #echo "tick tock auto-ssh connect home"
+		if [ -z $vpsuser -o -z $homenet -o -z $homenetport ]; then
+			echo "missing vpsuser|$vpsuser|homenet|$homenet|homenetport|$homenetport|"
+			exit 0
+		fi
+		isautosshrunning=$(pidof autossh)
+    if [ -z $isautosshrunning ]; then
+			createTunnel  $vpsuser $homenet $homenetport
+		else
+			echo "autossh already running at pid $isautosshrunning"
+		fi
+			
+    exit 0
+  ;;
+  logged) # All machines output logged to google tsv to screen
+    $gformcat
+    echo " "
+    exit 0
+   ;;
+  lsshids) # list sshid port
+    echo "VirtPort  Hostname" 
+    echo "------------------"
+    $gformcat 2>&1 | cut -f 2,9 | sed 1,1d | awk '{ print $2"\t"$1 }' | sort -nu | grep '^[0-9]'
+    exit 0
+  ;;
+  join) # join network $1 $2 $3 $4 $5  (server side only)
+		ReadHomenetCFG;
+#/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet $homenetport 
+    echo "establish connection needed parms (join) nowtime vpsuser sysname homenet"
+    echo "($1) $2 $3 $4 $5"
+    nowtime=$2
+    vpsuser=$3
+    sysname=$4
+    homenet=$5
+		if [ $isServer = yes ]; then
+    	echo "$nowtime $vpsuser $sysname $homenet" >> $homenetdb
+			echo "/usr/local/bin/rubyslippers.sh join $nowtime $vpsuser $sysname $homenet"
+		fi
+    exit 0
+  ;;
+  allsshids )# list all shhids only
+    $gformcat 2>&1 | cut -f 9 | sed 1,1d | sort -nu | grep .
+    exit 0
+  ;;
+  myinfo) # last cpuinfo info
+    GetSysHwid;
+    if [ -z $syshwid ]; then
+      echo nosyshwid
+      exit 1
+    fi
+    echo "syshwid=$syshwid"
+    GetSysNetwork debuginfo   ###
+		echo "==== last 3 lines ======="
+    $gformcat 2>&1 | grep "$syshwid" | tail -n 3
+    echo " "
+    exit 0
+  ;;
+  mysshid) # cpuinfo and sshid
+    $gformcat 2>&1 | grep "$syshwid" | tail -n 1 | cut -f 9  # last sshid port number tunnel
+    exit 0
+  ;;
+  cleantmp) # cleantmpfiles
+		rm /tmp/findipaddress
+		rm /tmp/currentenv
+		rm /tmp/lastknown
+	;;
+  heartbeat) # find anything changed and submit to google form
+    GetSysHwid
+		GetSysNetwork
+		GetHomenetIPaddr
+		GetOutSideNet
+		DidMyinfoChange
+		exit 0
+	;;
+  *) # help
+    echo "$(basename $0): (options) "
+    grep "[a-z]) # " $(dirname $0)/$(basename "$0")
+    exit 0
+  ;;
+esac
+fi
+
+## getsysinfo for the vars
+#if [ $isServer = "yes" ]; then  #add :sshinport to home IP
+#	echo "$sysname,$syshwid,$localip,$outsideip:$sshinport,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv 
+#else
+#	echo "$sysname,$syshwid,$localip,$outsideip,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv 
+#fi
+## get last known based on syshwid
+#$gformcat | grep "$syshwid"  | cut -f2- | tail -n 1 | sed 's/\r//' | sed -e 's/\t/,/g' > /tmp/lastknown
+#
+#envcurrent="$(md5sum /tmp/currentenv | awk '{ print $1 }')"
+#knownlast="$(md5sum /tmp/lastknown | awk '{ print $1 }')"
+##cat /tmp/currentenv
+##cat /tmp/lastknown
+###echo "last    = $knownlast"
+#if [[ "$knownlast" = "$envcurrent" ]]; then
+#	echo "nothing changed" >> /dev/null
+#else
+#	echo "something changed!!!" >> /dev/null
+##	echo "curl https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit "
+#	if [[ "$isServer" = "yes" ]]; then
+#		#outsideipgformSPORT=$(echo $outsideipgform:$sshinport | sed -f /usr/lib/cgi-bin/urlencode.sed)
+#		outsideipgformSPORT=$(echo $outsideipgform:$sshinport | $sedencode)
+#		curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgformSPORT -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+#	else
+#		curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+#	fi
+#
+#fi
+##
+## cleanup
+#rm /tmp/findipaddress
+#rm /tmp/currentenv
+#rm /tmp/lastknown
+
+
