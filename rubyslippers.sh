@@ -218,6 +218,7 @@ homenetall="$($gformcat | grep ":$sshinport" | cut -f 5 | tail -n 1 | awk '{ pri
 homenet="$(echo $homenetall | cut -d\: -f1)"
 homenetport="$(echo $homenetall | cut -d\: -f2)"
 
+echo "|$homenetall|$homenet|$homenetport|"
 
 }
 
@@ -386,18 +387,47 @@ if [[ "$knownlast" == "$envcurrent" ]]; then
 else
   #echo "something changed!!!" >> /dev/null
   echo "something changed!!!" 
+## read cfg gform entrie config file
+
 # echo "curl https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit "
-#GetHomenetIPaddr
+GetHomenetIPaddr
+  gformhostname=$(grep Hostname $callhomecfg | cut -d\| -f2)
+  sysnamegform="$gformhostname=$sysname"
+
+  gformhwid=$(grep HardwareID $callhomecfg | cut -d\| -f2)
+  syshwidgform="$gformhwid=$syshwid"
+
+  gformlocalip=$(grep IPlocal $callhomecfg | cut -d\| -f2)
+  localipgform="$gformlocalip=$localip"
+
+  gformrelease=$(grep Release $callhomecfg | cut -d\| -f2)
+  lsbreleasegform="$gformrelease=$lsbrelease"
+
+  gformkernel=$(grep Kernel $callhomecfg | cut -d\| -f2)
+  syskernelgform="$gformkernel=$syskernel"
+
+  gformsysarch=$(grep SysArch $callhomecfg | cut -d\| -f2)
+  sysarchgform="$gformsysarch=$sysarch"
+
+ gformrpimodel=$(grep RpiModel $callhomecfg | cut -d\| -f2 )
+  rpimodelgform="$gformrpimodel=$rpimodel" ##newinfo
+
+	gformispname=$(grep ISPname $callhomecfg | cut -d\| -f2 )
+	ispnamegform="$gformispname=$ispnameURL"
+
+	gformhomenet=$(cat $homenetcfg | awk '{ print $1 }')
+	homenetgform="$gformhomenet=$gformhomenet"
+
 
   if [[ "$isServer" = "yes" ]]; then
 	#gethomenet
     #outsideipgformSPORT=$(echo $outsideipgform:$sshinport | sed -f /usr/lib/cgi-bin/urlencode.sed)
     outsideipgformSPORT=$(echo $outsideipgform:$sshinport | $sedencode)
-    curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgformSPORT -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+    echo "curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgformSPORT -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null"
 
   else
 		### is a client submit
-	curl -s $gliveformurlsubmit -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit
+	echo "curl -s $gliveformurlsubmit -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d $ispnameURL -d submit=Submit"
     ##curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
   fi
 
