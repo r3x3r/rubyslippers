@@ -9,10 +9,10 @@ isServer=no
 
 # Important:identifier here
 # Obfuscated choose your own "random" incomming home port number from your google sheet
-sshinport=10069
+sshinport=686
 
 # client login username, usualy pi - default
-vpsuser=pi
+vpsuser=rexer
 
 # checkfor homenetcfg file 
 #  if not present, 
@@ -38,7 +38,7 @@ vpsuser=pi
 #  Hostname   HardwareID   IPlocal   OutsideIP   Release   Kernel   SysArch   Homenet   ISPname  RpiModel
 # simple text one line user input
 # Form -> goto live form  and copy url
-gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
+gliveformurl="https://docs.google.com/forms/d/e/1FAIpQLSc9ENsLkGI6XffWFcj47NIKVFPAwkEUWGEGgWGHqlT_uALtAA/viewform"
 #
 # After creating personal google form with as formnamed entries
 # File - > publish to Web
@@ -48,7 +48,8 @@ gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
 # entire document 
 # checkbox 
 #
-glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?output=tsv"
+#glivetsvurl="https://docs.google.com/spreadsheets/d/1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY/pub?output=tsv"
+glivetsvurl="https://docs.google.com/spreadsheets/d/1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY/export?format=tsv&id=1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY&gid=1593438779"
 #
 ## end of Google Form Configuration 
 ## 
@@ -317,31 +318,45 @@ echo "sysarch $sysarchgform" | $seddecode
 #fi
 
 ReadHomenetCFG(){
+syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
+#lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
+
 if [ -f $homenetcfg ]; then
-	homenet=$(head -n 1 $homenetcfg | awk '{print $1}')
-	syshwid=$(head -n 1 $homenetcfg | awk '{print $2}')
+homenet=$(head -n 1 $homenetcfg | awk '{print $1}')
+#lasthomenet="$(cat $homenetcfg | awk '{ print $2 }')"
+#	syshwid=$(head -n 1 $homenetcfg | awk '{print $2}' | cut -d\: -f2 )
 else
 	#	echo "$homenetcfg not present find online by syshwid"
 	# check for $syshwid if not present
-	syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
 	if [ -z $syshwid ]; then
 		echo "no syshwid "
 		exit 1
 	fi
-		lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
-		homenet=$lasthomenet
-		if [ -z $lasthomenet ]; then
-		#	echo "$homenetcfg NEW syshwid"
-		#	echo "lasthomenet null"
-			#lastonessh=$( $gformcat | sed 's/\r//'| cut -f 9 | grep . | sort -n |  tail -n 1 )
-			nexthomenet=$(( $lastonessh + 1 ))
-			homenet=$nexthomenet
-			echo "$nexthomenet $syshwid" > $homenetcfg
-		fi # nexthomenet
-		touch -p $(dirname $homenetcfg)
-		#mkdir -p $(dirname $homenetcfg)
-		echo "$lasthomenet $syshwid" > $homenetcfg
+	lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
+	if [ -z $lasthomenet ]; then
+	#	echo "$homenetcfg NEW syshwid"
+	# vloopstart=2200
+	#	echo "lasthomenet null"
+		lastonessh=$( $gformcat | sed 's/\r//'| cut -f 9  | grep -v Homenet | grep -v $vloopstart | grep . | sort -n |  tail -n 1 )
+		if [ -z $lastonessh ]; then
+			homenet=$(( $vloopplus + 1 ))
+#			echo "$homenet $syshwid" > $homenetcfg
+		fi
+	fi
+#	else
+#		nexthomenet=$(( $lastonessh + 1 ))
+#			lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | sort -n | tail -n 1 )
+#			nexthomenet=$(( $lastonessh + 1 ))
+			echo "$lasthomenet $syshwid" > $homenetcfg
+		#homenet=$nexthomenet
+#	fi # nexthomenet
+	#homenet=$lasthomenet
+	#touch -p $(dirname $homenetcfg)
+	mkdir -p $(dirname $homenetcfg)
+	echo "$homenet $syshwid" > $homenetcfg
+
 fi # file not exists
+
 }  ## end of ReadHomenetCFG
 
 DidMyinfoChange(){
