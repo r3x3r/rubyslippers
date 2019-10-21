@@ -14,6 +14,7 @@ Dependencies:
 * confiuration files:
 * /opt/share/callhome.cfg				(google specific formIDs)
 * /opt/share/callhome.homenet		(local raspberry pi information)
+* connection to https://www.ip-adress.com/what-is-my-ip-address for parsing outside network information
 
 Minimum requirements: 
 * Home router assign static IP raspberry pi.
@@ -35,7 +36,7 @@ Minimum requirements:
 3. *security risk assesment here* Configure home router port forward outside network to raspberry pi IP address. (reference your specific manufacture/brand and choose a non-standard number of obfuscation)
 ~~~~
 isServer=yes
-sshinport=686
+sshinport=10686
 vpsuser=pi
 ~~~~
 ----
