@@ -9,7 +9,7 @@ isServer=no
 
 # Important:identifier here
 # Obfuscated choose your own "random" incomming home port number from your google sheet
-sshinport=686
+sshinport=4000
 
 # client login username, usualy pi - default
 vpsuser=rexer
@@ -38,7 +38,9 @@ vpsuser=rexer
 #  Hostname   HardwareID   IPlocal   OutsideIP   Release   Kernel   SysArch   Homenet   ISPname  RpiModel
 # simple text one line user input
 # Form -> goto live form  and copy url
-gliveformurl="https://docs.google.com/forms/d/e/1FAIpQLSc9ENsLkGI6XffWFcj47NIKVFPAwkEUWGEGgWGHqlT_uALtAA/viewform"
+gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
+
+gliveformurlsubmit="$(echo $gliveformurl | sed -e 's/viewform/formResponse/g')"
 #
 # After creating personal google form with as formnamed entries
 # File - > publish to Web
@@ -48,15 +50,17 @@ gliveformurl="https://docs.google.com/forms/d/e/1FAIpQLSc9ENsLkGI6XffWFcj47NIKVF
 # entire document 
 # checkbox 
 #
-#glivetsvurl="https://docs.google.com/spreadsheets/d/1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY/pub?output=tsv"
-glivetsvurl="https://docs.google.com/spreadsheets/d/1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY/export?format=tsv&id=1Qy-FnVpdXwcpN4jp7lCnzyc80M-Ej0wI50miHMZWuHY&gid=1593438779"
+#glivetsvurl="https://docs.google.com/spreadsheets/d/GOOGLETSVOUTPUTKEY/pub?output=tsv"
+glivetsvurl="https://docs.google.com/spreadsheets/d/GOOGLETSVOUTPUTKEY/export?format=tsv&id=GOOGLETSVOUTPUTKEY&gid=GOOGLEUSERID"
 #
 ## end of Google Form Configuration 
 ## 
 
 # Virtual loopback sshport start number to connect into remote raspberry pi
 # additional clients will increment by 1
-# example server=2200 *try not to use 00reserved  rpi1=2201   rpi2=2202
+# example server=2200
+# 	rpi1=2201
+#		rpi2=2202
 vloopstart=2200
 
 # default config files
@@ -361,7 +365,7 @@ fi # file not exists
 
 DidMyinfoChange(){
 ReadHomenetCFG
-
+# must have parsed system information earlier
 ## getsysinfo for the vars
 if [ $isServer = "yes" ]; then  #add :sshinport to home IP
   echo "$sysname,$syshwid,$localip,$outsideip:$sshinport,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv
@@ -393,7 +397,8 @@ else
 
   else
 		### is a client submit
-    curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
+	curl -s $gliveformurlsubmit -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit
+    ##curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
   fi
 
 fi
@@ -470,7 +475,8 @@ if [ $OptCmd ]; then
 		fi
 		isautosshrunning=$(pidof autossh)
     if [ -z $isautosshrunning ]; then
-			createTunnel  $vpsuser $homenet $homenetport
+		 echo "sub-createTunnel  $vpsuser $homenet $homenetport"
+		 #createTunnel  $vpsuser $homenet $homenetport
 		else
 			echo "autossh already running at pid $isautosshrunning"
 		fi
@@ -530,6 +536,7 @@ if [ $OptCmd ]; then
 		rm /tmp/lastknown
 	;;
   heartbeat) # find anything changed and submit to google form
+		#amiroot heartbeat
     GetSysHwid
 		GetSysNetwork
 		GetHomenetIPaddr
@@ -545,34 +552,6 @@ if [ $OptCmd ]; then
 esac
 fi
 
-## getsysinfo for the vars
-#if [ $isServer = "yes" ]; then  #add :sshinport to home IP
-#	echo "$sysname,$syshwid,$localip,$outsideip:$sshinport,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv 
-#else
-#	echo "$sysname,$syshwid,$localip,$outsideip,$lsbrelease,$sysarch,$syskernel,$homenet,$CName,$Region,$City,$Zipcode,$MyISP,$Latitude/$Longtitude" | $seddecode  > /tmp/currentenv 
-#fi
-## get last known based on syshwid
-#$gformcat | grep "$syshwid"  | cut -f2- | tail -n 1 | sed 's/\r//' | sed -e 's/\t/,/g' > /tmp/lastknown
-#
-#envcurrent="$(md5sum /tmp/currentenv | awk '{ print $1 }')"
-#knownlast="$(md5sum /tmp/lastknown | awk '{ print $1 }')"
-##cat /tmp/currentenv
-##cat /tmp/lastknown
-###echo "last    = $knownlast"
-#if [[ "$knownlast" = "$envcurrent" ]]; then
-#	echo "nothing changed" >> /dev/null
-#else
-#	echo "something changed!!!" >> /dev/null
-##	echo "curl https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit "
-#	if [[ "$isServer" = "yes" ]]; then
-#		#outsideipgformSPORT=$(echo $outsideipgform:$sshinport | sed -f /usr/lib/cgi-bin/urlencode.sed)
-#		outsideipgformSPORT=$(echo $outsideipgform:$sshinport | $sedencode)
-#		curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgformSPORT -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
-#	else
-#		curl -s https://docs.google.com/forms/d/$GFormID/formResponse -d ifq -d $sysnamegform -d $syshwidgform -d $localipgform -d $lsbreleasegform -d $syskernelgform -d $homenetgform -d $outsideipgform -d $ispnamegform -d $sysarchgform -d submit=Submit 2>&1 >> /dev/null
-#	fi
-#
-#fi
 ##
 ## cleanup
 #rm /tmp/findipaddress
