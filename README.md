@@ -81,6 +81,7 @@ glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?out
 ----
 Program help (output mono text example)
 
+~~~~
   rubyslippers.sh: (options) 
     installfiles) # copy files in /usr/local/bin  must be root
     setupServer) # initial server setup must be root
@@ -95,6 +96,7 @@ Program help (output mono text example)
     mysshid) # cpuinfo and sshid
     cleantmp) # cleantmpfiles
     heartbeat) # find anything changed and submit to google form
+~~~~
 
 
 Home Server (aka Home) side setup: needed vpsusername

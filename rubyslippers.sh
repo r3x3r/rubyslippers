@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Programmer:  @r3x3r
+# Programmer:  Rex Tran @r3x3r
 # BsidesDFW 2019
+# Review your environments security policy. External facing open network ports are vulerability risks.
+#
+# TLDR: Remote shell callback with Rasbian use at own risk. *no warrenty *no takebacks
+
 
 # SSH INBOUND PORT NUMBER
 # sorry IPv4 only
@@ -39,8 +43,9 @@ vpsuser=rexer
 # simple text one line user input
 # Form -> goto live form  and copy url
 gliveformurl="https://docs.google.com/forms/d/e/GOOGLELIVEFORMKEY/viewform"
-
+#
 gliveformurlsubmit="$(echo $gliveformurl | sed -e 's/viewform/formResponse/g')"
+
 #
 # After creating personal google form with as formnamed entries
 # File - > publish to Web
@@ -82,6 +87,20 @@ nowtime="$(date +%Y%m%d-%H:%M)"
 
 # shorten the wget command to dump database to STDOUT
 gformcat="wget -qO- $glivetsvurl"
+
+
+# Am I new raspberry pi on gsheets?
+syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
+anewrpi="$(curl -s $glivetsvurl | grep $syshwid | tail -n 1)"
+if [ -z $anewrpi]; then
+	echo "i am a new raspberry pi"
+	echo "last known homenet ssh vloopback"
+	lastknownvloop="$gformcat | cut -f 9 | grep -v Homenet | sort -u  | tail -n 1"
+	exit 1
+fi
+
+exit 0
+### stop
 
 amiroot(){
   if [ $UID -ne 0 ]; then
@@ -213,7 +232,7 @@ GetSysNetwork(){  ## system and network information
 
 # using ouput of gform and incoming obfuscated port number defined 
 GetHomenetIPaddr() { 
-
+# looking for outside HomeIP with PORTNUMBER preceeded with :   ":4000"
 homenetall="$($gformcat | grep ":$sshinport" | cut -f 5 | tail -n 1 | awk '{ print $1 }')"
 homenet="$(echo $homenetall | cut -d\: -f1)"
 homenetport="$(echo $homenetall | cut -d\: -f2)"
@@ -331,8 +350,8 @@ homenet=$(head -n 1 $homenetcfg | awk '{print $1}')
 #lasthomenet="$(cat $homenetcfg | awk '{ print $2 }')"
 #	syshwid=$(head -n 1 $homenetcfg | awk '{print $2}' | cut -d\: -f2 )
 else
-	#	echo "$homenetcfg not present find online by syshwid"
-	# check for $syshwid if not present
+	#echo "$homenetcfg not present find online by syshwid"
+	#check for $syshwid if not present
 	if [ -z $syshwid ]; then
 		echo "no syshwid "
 		exit 1
@@ -354,6 +373,7 @@ else
 #			nexthomenet=$(( $lastonessh + 1 ))
 			if [ -z $lasthomenet ]; then
 				echo "no lasthomenet found"
+				echo "get last known"
 				exit 1
 			fi
 			echo "$lasthomenet $syshwid" > $homenetcfg
@@ -457,13 +477,17 @@ if [ $OptCmd ]; then
 		#cp urlencode.sed /usr/local/bin
 		#cp urldecode.sed /usr/local/bin
 		#cp $0 /usr/local/bin
-		echo "copy rubyslippers package to /usr/local/bin"
+		echo "copy rubyslippers.sh and files to /usr/local/bin"
+		echo "next run setupClient ID google entrie indexes in Google form"
+		echo "-> $gliveformurl"
+		echo " "
 		exit 0
 	;;
   setupServer) # initial server setup must be root
 		amiroot setupserveropts
     GetSysHwid;
     setup_server;
+		echo "using $gliveform"
     exit 0
   ;;
   setupClient) # initial setup must be root
