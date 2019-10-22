@@ -90,24 +90,23 @@ gformcat="wget -qO- $glivetsvurl"
 
 
 # Am I new raspberry pi on gsheets based on :SerialNumber:
-syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
-anewrpi="$(curl -s $glivetsvurl | grep $syshwid | tail -n 1)"
-if [ -z $anewrpi]; then
-	echo "i am a new raspberry pi"
-	lastknownvloop="$($gformcat | cut -f 9 | grep -v Homenet | sort -u  | tail -n 1)"
-	echo "lastallknownvloop|$lastknownvloop|"
-	if [ -z "$lastknownvloop" ]; then
-		echo "sshinport $sshinport"
-		homenet=$(( $sshinport + 1 ))
-		echo "my new $homenet"
-	fi
-	homenet=$(( $lastknownvloop + 1 ))
-#	homenet=$lastknownvloop
-fi
-echo "my homenet is $homenet"
+#syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
+#anewrpi="$(curl -s $glivetsvurl | grep $syshwid | tail -n 1)"
+#if [ -z $anewrpi]; then
+#	echo "A new raspberry pi!!"
+#	lastknownvloop="$($gformcat | cut -f 9 | grep -v Homenet | sort -u  | tail -n 1)"
+#	#echo "lastallknownvloop|$lastknownvloop|"
+#	if [ -z "$lastknownvloop" ]; then
+#	#	echo "sshinport $sshinport"
+#		homenet=$(( $sshinport + 1 ))
+#	#	echo "my new $homenet"
+#	fi
+#	homenet=$(( $lastknownvloop + 1 ))
+##	homenet=$lastknownvloop
+#fi
+#echo "my homenet is $homenet"
+#exit 0
 
-exit 0
-### stop
 
 amiroot(){
   if [ $UID -ne 0 ]; then
@@ -337,6 +336,27 @@ echo "sysarch $sysarchgform" | $seddecode
 }
 
 
+NewRpiDetect(){
+# Am I new raspberry pi on gsheets based on :SerialNumber:
+syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
+anewrpi="$(curl -s $glivetsvurl | grep $syshwid | tail -n 1)"
+if [ -z $anewrpi]; then
+  echo "A new raspberry pi!!"
+  lastknownvloop="$($gformcat | cut -f 9 | grep -v Homenet | sort -u  | tail -n 1)"
+  #echo "lastallknownvloop|$lastknownvloop|"
+  if [ -z "$lastknownvloop" ]; then
+  # echo "sshinport $sshinport"
+    homenet=$(( $sshinport + 1 ))
+  # echo "my new $homenet"
+  fi
+  homenet=$(( $lastknownvloop + 1 ))
+# homenet=$lastknownvloop
+fi
+echo "my homenet is $homenet"
+
+}
+
+
 #if [ ! -f $homenetcfg ]; then
 #  echo "please run setup for $homenetcfg"
 #  exit 1
@@ -353,29 +373,39 @@ syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":
 if [ -f $homenetcfg ]; then
 homenet=$(head -n 1 $homenetcfg | awk '{print $1}')
 #lasthomenet="$(cat $homenetcfg | awk '{ print $2 }')"
-#	syshwid=$(head -n 1 $homenetcfg | awk '{print $2}' | cut -d\: -f2 )
-else
+	syshwid=$(head -n 1 $homenetcfg | awk '{print $2}' | cut -d\: -f2 )
+	if [ -z $homenet ]; then
+		# i am a newpi
+		NewRpiDetect
+	fi
+else # create a new $homenetcfg
 	#echo "$homenetcfg not present find online by syshwid"
 	#check for $syshwid if not present
-	if [ -z $syshwid ]; then
+		NewRpiDetect
 		echo "no syshwid "
 		exit 1
 	fi
-	lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
-	if [ -z $lasthomenet ]; then
+	#lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
+	#NewRpiDetect
+	echo "newhomenet $homenet $syshwid"
+	#if [ -z $lasthomenet ]; then
 	#	echo "$homenetcfg NEW syshwid"
 	# vloopstart=2200
+	#NewRpiDetect
 	#	echo "lasthomenet null"
-		lastonessh=$( $gformcat | sed 's/\r//'| cut -f 9  | grep -v Homenet | grep -v $vloopstart | grep . | sort -n |  tail -n 1 )
-		if [ -z $lastonessh ]; then
-			homenet=$(( $vloopplus + 1 ))
-#			echo "$homenet $syshwid" > $homenetcfg
-		fi
-	fi
+#		lastonessh=$( $gformcat | sed 's/\r//'| cut -f 9  | grep -v Homenet | grep -v $vloopstart | grep . | sort -n |  tail -n 1 )
+#		if [ -z $lastonessh ]; then
+#			homenet=$(( $vloopplus + 1 ))
+#		fi
+	echo "$homenet $syshwid" > $homenetcfg
+
+#fi
+
 #	else
 #		nexthomenet=$(( $lastonessh + 1 ))
 #			lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | sort -n | tail -n 1 )
 #			nexthomenet=$(( $lastonessh + 1 ))
+#			NewRpiDetect
 			if [ -z $lasthomenet ]; then
 				echo "no lasthomenet found"
 				echo "get last known"
@@ -393,7 +423,7 @@ else
 	mkdir -p $(dirname $homenetcfg)
 	echo "$homenet $syshwid" > $homenetcfg
 
-fi # file not exists
+#fi # file not exists
 
 }  ## end of ReadHomenetCFG
 
@@ -411,8 +441,7 @@ $gformcat | grep "$syshwid"  | cut -f2- | tail -n 1 | sed 's/\r//' | sed -e 's/\
 
 envcurrent="$(md5sum /tmp/currentenv | awk '{ print $1 }')"
 knownlast="$(md5sum /tmp/lastknown | awk '{ print $1 }')"
-#cat /tmp/currentenv
-#cat /tmp/lastknown
+#cat /tmp/currentenv /tmp/lastknown
 ##echo "last    = $knownlast"
 if [[ "$knownlast" == "$envcurrent" ]]; then
   #echo "nothing changed" >> /dev/null
