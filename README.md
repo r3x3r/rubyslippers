@@ -3,6 +3,11 @@ Raspberry pi autossh bash auto-ssh script utilizing google spreadsheets.
 
 No outside ports are needed to be forwarded to remote client raspberry pi on remote network.
 
+Review your network security policy. External facing open network ports are vulerability risks.
+
+TLDR: Remote shell callback with Rasbian and google sheets. Use at own risk. No warrenty No takebacks
+
+
 ----
 BsidesDFW 2019
 ----
@@ -45,7 +50,7 @@ vpsuser=pi
 vloopstart=2200
 ~~~~
 
-5. Create Google Sheet to use as a database.
+5. Login to [Google Sheets](http://sheets.google.com) to create a sheet for database of your pi inventory.
 
 * example: piConnectBack
 * goto Tools menu, select Create form
