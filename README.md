@@ -1,12 +1,14 @@
 # rubyslippers
+
 Raspberry pi autossh bash auto-ssh script utilizing google spreadsheets.
 
 No outside ports are needed to be forwarded to remote client raspberry pi on remote network.
 
-Review your network security policy. External facing open network ports are vulerability risks.
+Review your home network security policy. External facing open network ports are vulerability risks.
 
-TLDR: Remote shell callback with Rasbian and google sheets. Use at own risk. No warrenty No takebacks
+TLDR: Remote shell callback with Rasbian and google sheets. Use at own risk. no warrenty no takebacks
 
+Not for enterprise use.
 
 ----
 BsidesDFW 2019
@@ -38,7 +40,7 @@ Minimum requirements:
 ----
 2. Configure home router to staticly assign raspberry IP address. Use the mac address of raspberry pi to boot up with the same IP address. [many how-to videos](https://www.google.com/search?q=setup+static+ip+home+router+raspberry+pi&source=lnms&tbm=vid "many how-to videos").
 ----
-3. *security risk assesment here* Configure home router port forward outside network to raspberry pi IP address. (reference your specific manufacture/brand and choose a non-standard number of obfuscation)
+3. __*security risk assesment here*__ Configure home router port forward outside network to raspberry pi IP address. (reference your specific manufacture/brand and choose a non-standard number of obfuscation)
 ~~~~
 isServer=yes
 sshinport=10686
@@ -84,7 +86,7 @@ glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?out
 ~~~~
 
 ----
-Program help (output mono text example)
+Program help
 
 ~~~~
   rubyslippers.sh: (options) 
@@ -134,5 +136,6 @@ Credits:
 (https://eureka.ykyuen.info/2014/07/30/submit-google-forms-by-curl-command/)
 A Brief Tunneling Tutorial by s0ke - 2600 issue 35 Winter 2019
 Inspiration:
-#telesploit @altbier
+#telesploit @altbier @GitHub @Linux @Raspberry_Pi
+
 

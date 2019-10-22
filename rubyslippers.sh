@@ -89,15 +89,22 @@ nowtime="$(date +%Y%m%d-%H:%M)"
 gformcat="wget -qO- $glivetsvurl"
 
 
-# Am I new raspberry pi on gsheets?
+# Am I new raspberry pi on gsheets based on :SerialNumber:
 syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
 anewrpi="$(curl -s $glivetsvurl | grep $syshwid | tail -n 1)"
 if [ -z $anewrpi]; then
 	echo "i am a new raspberry pi"
-	echo "last known homenet ssh vloopback"
-	lastknownvloop="$gformcat | cut -f 9 | grep -v Homenet | sort -u  | tail -n 1"
-	exit 1
+	lastknownvloop="$($gformcat | cut -f 9 | grep -v Homenet | sort -u  | tail -n 1)"
+	echo "lastallknownvloop|$lastknownvloop|"
+	if [ -z "$lastknownvloop" ]; then
+		echo "sshinport $sshinport"
+		homenet=$(( $sshinport + 1 ))
+		echo "my new $homenet"
+	fi
+	homenet=$(( $lastknownvloop + 1 ))
+#	homenet=$lastknownvloop
 fi
+echo "my homenet is $homenet"
 
 exit 0
 ### stop
@@ -244,8 +251,6 @@ echo "|$homenetall|$homenet|$homenetport|vpsuser $vpsuser|"
 # clickshoes to call home
 
 createTunnel() {
-  #/usr/bin/ssh -N -R rexer@$rexnet 
-  #/usr/bin/ssh -N -R $homenet:localhost:22 -p $rexnetport rexer@$rexnet 
   #autossh -M 0 homeserver01 -p 9991 -N -R 8081:localhost:9991 -vvv
   #sudo -u autossh bash -c '/usr/local/bin/autossh -M 0 -f autossh@homeserver01 -p 9991 -N -o "ExitOnForwardFailure=yes" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R 8081:localhost:9991'
   #note  autossh -M pi3_checking_port -fN -o "PubkeyAuthentication=yes" -o "StrictHostKeyChecking=false" -o "PasswordAuthentication=no" -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R vps_ip:vps_port:localhost:pi_port -i /home/pi/.ssh/id_rsa vps_user@vps_port
