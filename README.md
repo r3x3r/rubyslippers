@@ -133,9 +133,13 @@ Add @vpsuser crontab -l
 
 
 Credits:
-(https://eureka.ykyuen.info/2014/07/30/submit-google-forms-by-curl-command/)
-A Brief Tunneling Tutorial by s0ke - 2600 issue 35 Winter 2019
-Inspiration:
-#telesploit @altbier @GitHub @Linux @Raspberry_Pi
+* (https://eureka.ykyuen.info/2014/07/30/submit-google-forms-by-curl-command/)
+* A Brief Tunneling Tutorial by s0ke - 2600 issue 35 Winter 2019
+* Inspiration:
+** #telesploit
+** @altbier
+** @GitHub
+** @Linux
+** @Raspberry_Pi
 
 
