@@ -140,6 +140,10 @@ Credits:
 * @altbier
 * @GitHub
 * @Linux
+* Bash
+* vim
+* [Stakoverflow.com](https://stackoverflow.com)
 * @Raspberry_Pi
+
 
 

@@ -369,24 +369,25 @@ echo "my homenet is $homenet"
 ReadHomenetCFG(){
 syshwid="$(cat /proc/cpuinfo | grep -i Serial | head -n 1 | awk '{ print ":"$3":" }' )"
 #lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
-
 if [ -f $homenetcfg ]; then
-homenet=$(head -n 1 $homenetcfg | awk '{print $1}')
-#lasthomenet="$(cat $homenetcfg | awk '{ print $2 }')"
+	homenet=$(head -n 1 $homenetcfg | awk '{print $1}')
+	#lasthomenet="$(cat $homenetcfg | awk '{ print $2 }')"
 	syshwid=$(head -n 1 $homenetcfg | awk '{print $2}' | cut -d\: -f2 )
 	if [ -z $homenet ]; then
 		# i am a newpi
 		NewRpiDetect
 	fi
 else # create a new $homenetcfg
+#	NewRpiDetect
 	#echo "$homenetcfg not present find online by syshwid"
 	#check for $syshwid if not present
-		NewRpiDetect
-		echo "no syshwid "
-		exit 1
-	fi
+	echo "newhomenet $homenet $syshwid"
+#		NewRpiDetect
+#		echo "no syshwid "
+#		exit 1
+fi
 	#lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | tail -n 1 )
-	#NewRpiDetect
+#	NewRpiDetect
 	echo "newhomenet $homenet $syshwid"
 	#if [ -z $lasthomenet ]; then
 	#	echo "$homenetcfg NEW syshwid"
@@ -428,7 +429,6 @@ else # create a new $homenetcfg
 }  ## end of ReadHomenetCFG
 
 DidMyinfoChange(){
-ReadHomenetCFG
 # must have parsed system information earlier
 ## getsysinfo for the vars
 if [ $isServer = "yes" ]; then  #add :sshinport to home IP
@@ -526,19 +526,21 @@ if [ $OptCmd ]; then
   ;;
   setupClient) # initial setup must be root
 		amiroot setupClient
-    GetSysHwid;
+		NewRpiDetect
+#    GetSysHwid;
+		GetSysNetwork;
     setup_client;
 		ReadHomenetCFG;
-    if [ ! -f $callhomecfg ]; then
+		echo "google form: $gliveformurl"
+#    if [ ! -f $callhomecfg ]; then
       curl -s $gliveformurl | grep 'entry.[0-9]*' | sed -e 's/ /\n/g' > /tmp/gliveform
        for i in $(grep 'entry.[0-9]*' /tmp/gliveform | cut -d\" -f2 | sed -e 's/"//g'); do
          echo "|$i|$(grep "$i" /tmp/gliveform -B 3 | head -n 1 | cut -d\" -f2)|" | tee -a $callhomecfg
        done
 			rm /tmp/gliveform
-    else
-      echo "google form: $gliveformurl"
+#    else
       cat $callhomecfg
-    fi
+#    fi
     exit 0
    ;;
   callhomefirst) # callhome first to test ssh call home
