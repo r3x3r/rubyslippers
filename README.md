@@ -1,7 +1,7 @@
 # rubyslippers
 Raspberry pi autossh bash auto-ssh script utilizing google spreadsheets.
 
-No outside ports are needed to be forwarded to client raspberry pi on remote network.
+No outside ports are needed to be forwarded to remote client raspberry pi on remote network.
 
 ----
 BsidesDFW 2019
@@ -81,19 +81,45 @@ glivetsvurl="https://docs.google.com/spreadsheets/d/e/GOOGLETSVOUTPUTKEY/pub?out
 ----
 Program help (output mono text example)
 
-Server (aka Home) side setup:
+  rubyslippers.sh: (options) 
+    installfiles) # copy files in /usr/local/bin  must be root
+    setupServer) # initial server setup must be root
+    setupClient) # initial setup must be root
+    callhomefirst) # callhome first to test ssh call home
+    showconnected) # show machies connected to server
+    tapshoes) # no place like home
+    logged) # All machines output logged to google tsv to screen
+    lsshids) # list sshid port
+    join) # join network $1 $2 $3 $4 $5  (server side only)
+    myinfo) # last cpuinfo info
+    mysshid) # cpuinfo and sshid
+    cleantmp) # cleantmpfiles
+    heartbeat) # find anything changed and submit to google form
+
+
+Home Server (aka Home) side setup: needed vpsusername
+
+
+Crontab scheduler permissions
+
+crontab -l root
+
+crontab -l pi (vpsuser) 
+
 
 Edit rubyslippers.sh
-* incomming ssh port
+* inbound ssh port needed
 * Google web publish url
 * Google live form url
-Add to root crontab
+Add @root crontab -l
+
 
 Client (aka RemoteRaspi) side setup:
 Edit rubyslippers.sh
 * Google web publish url
 * Google live form url
-Add to vpsuser crontab
+Add @vpsuser crontab -l
+
 
 
 

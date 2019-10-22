@@ -218,7 +218,7 @@ homenetall="$($gformcat | grep ":$sshinport" | cut -f 5 | tail -n 1 | awk '{ pri
 homenet="$(echo $homenetall | cut -d\: -f1)"
 homenetport="$(echo $homenetall | cut -d\: -f2)"
 
-echo "|$homenetall|$homenet|$homenetport|"
+echo "|$homenetall|$homenet|$homenetport|vpsuser $vpsuser|"
 
 }
 
@@ -352,11 +352,19 @@ else
 #		nexthomenet=$(( $lastonessh + 1 ))
 #			lasthomenet=$( $gformcat | grep $syshwid | grep -v HardwareID | sed 's/\r//'| cut -f 9 | grep . | sort -n | tail -n 1 )
 #			nexthomenet=$(( $lastonessh + 1 ))
+			if [ -z $lasthomenet ]; then
+				echo "no lasthomenet found"
+				exit 1
+			fi
 			echo "$lasthomenet $syshwid" > $homenetcfg
 		#homenet=$nexthomenet
 #	fi # nexthomenet
 	#homenet=$lasthomenet
 	#touch -p $(dirname $homenetcfg)
+	if [ -z $homenet ]; then
+			echo "homenet not found"
+			exit 1
+	fi
 	mkdir -p $(dirname $homenetcfg)
 	echo "$homenet $syshwid" > $homenetcfg
 
