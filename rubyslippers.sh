@@ -508,9 +508,10 @@ if [ $OptCmd ]; then
  case $OptCmd in
   installfiles) # copy files in /usr/local/bin  must be root
 		amiroot toinstallfiles
-		#cp urlencode.sed /usr/local/bin
-		#cp urldecode.sed /usr/local/bin
-		#cp $0 /usr/local/bin
+		echo "installing to /usr/local/bin"
+		cp urlencode.sed /usr/local/bin
+		cp urldecode.sed /usr/local/bin
+		cp rubyslippers.sh /usr/local/bin
 		echo "copy rubyslippers.sh and files to /usr/local/bin"
 		echo "next run setupClient ID google entrie indexes in Google form"
 		echo "-> $gliveformurl"

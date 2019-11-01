@@ -4,11 +4,9 @@ Raspberry pi autossh bash auto-ssh script utilizing google spreadsheets.
 
 No outside ports are needed to be forwarded to remote client raspberry pi on remote network.
 
-Review your home network security policy. External facing open network ports are vulerability risks.
+External facing open network ports are vulerability risks. Review your home network security policy.
 
-TLDR: Remote shell callback with Rasbian and google sheets. Use at own risk. no warrenty no takebacks
-
-Not for enterprise use.
+Remote shell callback with Rasbian and google sheets. Use at own risk. no warrenty no takebacks. Work in progress. Not for enterprise use.
 
 ----
 BsidesDFW 2019
@@ -90,54 +88,51 @@ Program help
 
 ~~~~
   rubyslippers.sh: (options) 
-    installfiles) # copy files in /usr/local/bin  must be root
-    setupServer) # initial server setup must be root
-    setupClient) # initial setup must be root
-    callhomefirst) # callhome first to test ssh call home
-    showconnected) # show machies connected to server
-    tapshoes) # no place like home
-    logged) # All machines output logged to google tsv to screen
-    lsshids) # list sshid port
-    join) # join network $1 $2 $3 $4 $5  (server side only)
-    myinfo) # last cpuinfo info
-    mysshid) # cpuinfo and sshid
-    cleantmp) # cleantmpfiles
-    heartbeat) # find anything changed and submit to google form
+    installfiles)   # copy files in /usr/local/bin  must be root
+    setupServer)    # initial server setup must be root
+    setupClient)    # initial setup must be root
+    callhomefirst)  # callhome first to test ssh call home
+    showconnected)  # show machies connected to server
+    tapshoes)       # no place like home
+    logged)         # All machines output logged to google tsv to screen
+    lsshids)        # list sshid port
+    join)           # join network $1 $2 $3 $4 $5  (server side only)
+    myinfo)         # last cpuinfo info
+    mysshid)        # cpuinfo and sshid
+    cleantmp)       # cleantmpfiles
+    heartbeat)      # find anything changed and submit to google form
 ~~~~
 
 
-Home Server (aka Home) side setup: needed vpsusername
 
+~~~~
+~~~~
 
-Crontab scheduler permissions
-
-crontab -l root
-
-crontab -l pi (vpsuser) 
-
-
+Server side setup
 Edit rubyslippers.sh
 * inbound ssh port needed
 * Google web publish url
 * Google live form url
-Add @root crontab -l
+* add root crontab heartbeat
+~~~~
+30 1,19   *  *   *     /usr/local/bin/rubyslippers.sh heartbeat
+~~~~
+
+Distribute rubyslippers to each raspberry client
+* add client crontab tapshoes
+~~~~
+1  2,18   *  *   *     /user/local/bin/rubyslippers.sh tapshoes
+~~~~
 
 
-Client (aka RemoteRaspi) side setup:
-Edit rubyslippers.sh
-* Google web publish url
-* Google live form url
-Add @vpsuser crontab -l
-
-
-
+----
 
 Credits:
 * (https://eureka.ykyuen.info/2014/07/30/submit-google-forms-by-curl-command/)
 * A Brief Tunneling Tutorial by s0ke - 2600 issue 35 Winter 2019
 * Inspiration:
 * #telesploit
-* @altbier
+* @alt_bier
 * @GitHub
 * @Linux
 * Bash
